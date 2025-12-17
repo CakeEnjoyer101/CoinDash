@@ -814,9 +814,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   thePlayer: {fileID: 1258338229}
-  collisionFX: {fileID: 0}
-  mainCam: {fileID: 0}
-  fadeOut: {fileID: 0}
+  collisionFX: {fileID: 532577431}
+  mainCam: {fileID: 330585543}
+  fadeOut: {fileID: 281597067}
 --- !u!1001 &267271156
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3346,9 +3346,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   thePlayer: {fileID: 1258338229}
-  collisionFX: {fileID: 0}
-  mainCam: {fileID: 0}
-  fadeOut: {fileID: 0}
+  collisionFX: {fileID: 532577431}
+  mainCam: {fileID: 330585543}
+  fadeOut: {fileID: 281597067}
 --- !u!1 &998641072
 GameObject:
   m_ObjectHideFlags: 0
@@ -3468,9 +3468,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   thePlayer: {fileID: 1258338229}
-  collisionFX: {fileID: 0}
-  mainCam: {fileID: 0}
-  fadeOut: {fileID: 0}
+  collisionFX: {fileID: 532577431}
+  mainCam: {fileID: 330585543}
+  fadeOut: {fileID: 281597067}
 --- !u!1 &1005651228
 GameObject:
   m_ObjectHideFlags: 0
@@ -3633,9 +3633,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   thePlayer: {fileID: 1258338229}
-  collisionFX: {fileID: 0}
-  mainCam: {fileID: 0}
-  fadeOut: {fileID: 0}
+  collisionFX: {fileID: 532577431}
+  mainCam: {fileID: 330585543}
+  fadeOut: {fileID: 281597067}
 --- !u!1 &1152800091
 GameObject:
   m_ObjectHideFlags: 0
@@ -4668,9 +4668,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   thePlayer: {fileID: 1258338229}
-  collisionFX: {fileID: 0}
-  mainCam: {fileID: 0}
-  fadeOut: {fileID: 0}
+  collisionFX: {fileID: 532577431}
+  mainCam: {fileID: 330585543}
+  fadeOut: {fileID: 281597067}
 --- !u!1 &1466879146
 GameObject:
   m_ObjectHideFlags: 0
@@ -6363,9 +6363,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   thePlayer: {fileID: 1258338229}
-  collisionFX: {fileID: 0}
-  mainCam: {fileID: 0}
-  fadeOut: {fileID: 0}
+  collisionFX: {fileID: 532577431}
+  mainCam: {fileID: 330585543}
+  fadeOut: {fileID: 281597067}
 --- !u!1 &1969951363
 GameObject:
   m_ObjectHideFlags: 0
