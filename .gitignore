@@ -21,3 +21,8 @@
 *.pdb
 *.opendb
 *.VC.db
+*.vsidx
+*.vsidx
+/.vs/CoinDash/FileContentIndex
+Packages/packages-lock.json
+.vs/CoinDash/v17/DocumentLayout.json

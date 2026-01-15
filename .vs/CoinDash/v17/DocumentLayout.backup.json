@@ -1,0 +1,75 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\svene\\OneDrive\\Desktop\\HTL\\5BHITM\\Gamedev\\CoinDash\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{7CEA5D90-F9EB-8D7D-C6A4-DDC84207E42F}|Assembly-CSharp.csproj|c:\\users\\svene\\onedrive\\desktop\\htl\\5bhitm\\gamedev\\coindash\\assets\\scripts\\playermovement.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7CEA5D90-F9EB-8D7D-C6A4-DDC84207E42F}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\playermovement.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7CEA5D90-F9EB-8D7D-C6A4-DDC84207E42F}|Assembly-CSharp.csproj|c:\\users\\svene\\onedrive\\desktop\\htl\\5bhitm\\gamedev\\coindash\\assets\\scripts\\segmentgenerator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7CEA5D90-F9EB-8D7D-C6A4-DDC84207E42F}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\segmentgenerator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{7CEA5D90-F9EB-8D7D-C6A4-DDC84207E42F}|Assembly-CSharp.csproj|c:\\users\\svene\\onedrive\\desktop\\htl\\5bhitm\\gamedev\\coindash\\assets\\scripts\\masterlevelinfo.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{7CEA5D90-F9EB-8D7D-C6A4-DDC84207E42F}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\masterlevelinfo.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 2,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "SegmentGenerator.cs",
+              "DocumentMoniker": "C:\\Users\\svene\\OneDrive\\Desktop\\HTL\\5BHITM\\Gamedev\\CoinDash\\Assets\\Scripts\\SegmentGenerator.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\SegmentGenerator.cs",
+              "ToolTip": "C:\\Users\\svene\\OneDrive\\Desktop\\HTL\\5BHITM\\Gamedev\\CoinDash\\Assets\\Scripts\\SegmentGenerator.cs",
+              "RelativeToolTip": "Assets\\Scripts\\SegmentGenerator.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABkAAAATAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-01-15T11:04:38.407Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "MasterLevelInfo.cs",
+              "DocumentMoniker": "C:\\Users\\svene\\OneDrive\\Desktop\\HTL\\5BHITM\\Gamedev\\CoinDash\\Assets\\Scripts\\MasterLevelInfo.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\MasterLevelInfo.cs",
+              "ToolTip": "C:\\Users\\svene\\OneDrive\\Desktop\\HTL\\5BHITM\\Gamedev\\CoinDash\\Assets\\Scripts\\MasterLevelInfo.cs",
+              "RelativeToolTip": "Assets\\Scripts\\MasterLevelInfo.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-01-15T11:04:32.443Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "PlayerMovement.cs",
+              "DocumentMoniker": "C:\\Users\\svene\\OneDrive\\Desktop\\HTL\\5BHITM\\Gamedev\\CoinDash\\Assets\\Scripts\\PlayerMovement.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\PlayerMovement.cs",
+              "ToolTip": "C:\\Users\\svene\\OneDrive\\Desktop\\HTL\\5BHITM\\Gamedev\\CoinDash\\Assets\\Scripts\\PlayerMovement.cs",
+              "RelativeToolTip": "Assets\\Scripts\\PlayerMovement.cs",
+              "ViewState": "AgIAAB8AAAAAAAAAAAA1wCkAAAA7AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-01-15T10:27:57.316Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
