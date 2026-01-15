@@ -19,7 +19,7 @@ MonoBehaviour:
     width: 1920
     height: 989
   m_ShowMode: 4
-  m_Title: Game
+  m_Title: Scene
   m_RootView: {fileID: 6}
   m_MinSize: {x: 875, y: 300}
   m_MaxSize: {x: 10000, y: 10000}
@@ -472,7 +472,7 @@ MonoBehaviour:
     m_SkipHidden: 0
     m_SearchArea: 1
     m_Folders:
-    - Assets/Audio/FX
+    - Assets/TextMesh Pro
     m_Globs: []
     m_OriginalText: 
     m_ImportLogFlags: 0
@@ -480,16 +480,16 @@ MonoBehaviour:
   m_ViewMode: 1
   m_StartGridSize: 64
   m_LastFolders:
-  - Assets/Audio/FX
+  - Assets/TextMesh Pro
   m_LastFoldersGridSize: -1
   m_LastProjectPath: C:\Users\User\Documents\GitHub\CoinDash
   m_LockTracker:
     m_IsLocked: 0
   m_FolderTreeState:
     scrollPos: {x: 0, y: 0}
-    m_SelectedIDs: e80f0100
-    m_LastClickedID: 69608
-    m_ExpandedIDs: 00000000f27700000c780000d21901003a1b0100
+    m_SelectedIDs: 3e780000
+    m_LastClickedID: 30782
+    m_ExpandedIDs: 00000000187800001a7800001c780000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -517,7 +517,7 @@ MonoBehaviour:
     scrollPos: {x: 0, y: 0}
     m_SelectedIDs: 
     m_LastClickedID: 0
-    m_ExpandedIDs: 00000000f2770000
+    m_ExpandedIDs: 00000000187800001a7800001c780000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -544,7 +544,7 @@ MonoBehaviour:
   m_ListAreaState:
     m_SelectedInstanceIDs: 
     m_LastClickedInstanceID: 0
-    m_HadKeyboardFocusLastEvent: 1
+    m_HadKeyboardFocusLastEvent: 0
     m_ExpandedInstanceIDs: c6230000b06e0000b26e000000000000187200001a720000766f0000746f0000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
@@ -661,23 +661,23 @@ MonoBehaviour:
       scrollPos: {x: 0, y: 0}
       m_SelectedIDs: 
       m_LastClickedID: 0
-      m_ExpandedIDs: 7c8ffdff8e90fdff9e91fdff28a5fdffa6a9fdff50abfdff00b0fdff82c9fdffc4ddfdff9407feffd408fefff213feff3031feff2455feffe855feffc056feff4a58feff6c59feffcc5ffeff646bfeff1c74feffde98feff989afeff369ffeff02a8feffcecdfeff58cffeffccd4feff2ad6feff6272ffff7e79ffff6cabffff4eadffff2ad3ffffe8d3ffffa6d5ffff8ef1ffff22fbffff88750000b8780000d8780000b07f0000d27f00004c8d0000508d0000e4a70000c0a9000022e50000faf000004cf500008cf50000261901000227010020280100282d01003c3301004a330100ec390100684e0100f64e010008500100
+      m_ExpandedIDs: 70b6ffff84b7ffffdeb8ffffb2b9fffff4baffff92c3ffff84daffff3edfffffc8e5ffff84e6ffff94e9ffffbee9ffff4ceaffff8eebffff82f1ffff22fbffff0e7900001c790000
       m_RenameOverlay:
         m_UserAcceptedRename: 0
-        m_Name: 
-        m_OriginalName: 
+        m_Name: AKey
+        m_OriginalName: AKey
         m_EditFieldRect:
           serializedVersion: 2
           x: 0
           y: 0
           width: 0
           height: 0
-        m_UserData: 0
+        m_UserData: 30972
         m_IsWaitingForDelay: 0
         m_IsRenaming: 0
-        m_OriginalEventType: 11
+        m_OriginalEventType: 0
         m_IsRenamingFilename: 0
-        m_ClientGUIView: {fileID: 0}
+        m_ClientGUIView: {fileID: 4}
       m_SearchString: 
     m_ExpandedScenes: []
     m_CurrenRootInstanceID: 0
@@ -1081,9 +1081,9 @@ MonoBehaviour:
   m_PlayAudio: 0
   m_AudioPlay: 0
   m_Position:
-    m_Target: {x: 1379.895, y: 1041.262, z: 145.22997}
+    m_Target: {x: -69.05426, y: -18.109472, z: 4.433773}
     speed: 2
-    m_Value: {x: 1379.895, y: 1041.262, z: 145.22997}
+    m_Value: {x: -69.05426, y: -18.109472, z: 4.433773}
   m_RenderMode: 0
   m_CameraMode:
     drawMode: 0
@@ -1129,13 +1129,13 @@ MonoBehaviour:
     m_GridAxis: 1
     m_gridOpacity: 0.5
   m_Rotation:
-    m_Target: {x: -0.02126223, y: -0.060851246, z: 0.0014044978, w: -0.99796724}
+    m_Target: {x: -0.121077314, y: 0.66848344, z: -0.11145433, w: -0.7253626}
     speed: 2
-    m_Value: {x: -0.021261217, y: -0.060848344, z: 0.0014044308, w: -0.9979197}
+    m_Value: {x: -0.11998308, y: 0.6686156, z: -0.11044569, w: -0.7255061}
   m_Size:
-    m_Target: 1114.8954
+    m_Target: 51.49061
     speed: 2
-    m_Value: 1114.8954
+    m_Value: 51.49061
   m_Ortho:
     m_Target: 0
     speed: 2
@@ -1233,7 +1233,7 @@ MonoBehaviour:
   m_SerializedViewNames:
   - UnityEditor.DeviceSimulation.SimulatorWindow
   m_SerializedViewValues:
-  - C:\Users\User\Documents\GitHub\CoinDash\Library\PlayModeViewStates\94d64a059d61a1a41b6311b090d289c4
+  - C:\Users\User\Documents\GitHub\CoinDash\Library\PlayModeViewStates\a82d9abf4d2cea740b736d741bfe52cd
   m_PlayModeViewName: GameView
   m_ShowGizmos: 0
   m_TargetDisplay: 0
@@ -1265,7 +1265,7 @@ MonoBehaviour:
     m_HSlider: 0
     m_VSlider: 0
     m_IgnoreScrollWheelUntilClicked: 0
-    m_EnableMouseInput: 0
+    m_EnableMouseInput: 1
     m_EnableSliderZoomHorizontal: 0
     m_EnableSliderZoomVertical: 0
     m_UniformScale: 1
