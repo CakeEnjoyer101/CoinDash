@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -17,7 +15,9 @@ public class MainMenuControl : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        StartCoroutine(FadeInTurnOff());
+        if (fadeIn != null)
+            fadeIn.SetActive(false);
+
         if (hasClicked)
         {
             staticCam.SetActive(true);
@@ -36,38 +36,30 @@ public class MainMenuControl : MonoBehaviour
 
     public void MenuBeginButton()
     {
-        StartCoroutine(AnimCam());
+        if (fadeIn != null)
+            fadeIn.SetActive(false);
+
+        if (mainCam != null)
+            mainCam.SetActive(true);
+
+        if (animCam != null)
+            animCam.SetActive(false);
+
+        if (menuControls != null)
+            menuControls.SetActive(true);
+
+        if (bounceText != null)
+            bounceText.SetActive(false);
+
+        if (bigButton != null)
+            bigButton.SetActive(false);
+
+        hasClicked = true;
     }
 
 
     public void StartGame()
     {
-        StartCoroutine(StartButton());
-    }
-
-    IEnumerator StartButton()
-    {
-        fadeOut.SetActive(true);
-        yield return new WaitForSeconds(0.98f);
         SceneManager.LoadScene(2);
-    }
-
-    IEnumerator AnimCam()
-    {
-        animCam.GetComponent<Animator>().Play("AnimMenuCam");
-        bounceText.SetActive(false);
-        bigButton.SetActive(false);
-        yield return new WaitForSeconds(1.5f);
-        fadeIn.SetActive(false);
-        mainCam.SetActive(true);
-        animCam.SetActive(false);
-        menuControls.SetActive(true);
-        hasClicked = true;
-    }
-
-    IEnumerator FadeInTurnOff()
-    {
-        yield return new WaitForSeconds(1);
-        fadeIn.SetActive(false);
     }
 }

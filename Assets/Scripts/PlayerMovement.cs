@@ -16,7 +16,6 @@ public class PlayerMovement : MonoBehaviour
     // Touch variables for jump
     private float touchHoldTimer = 0f;
     public float touchHoldForJump = 0.3f; // Hold time for jump on mobile
-    private bool isTouching = false;
 
     // Jump control variables
     private bool canJump = true;
@@ -87,7 +86,6 @@ public class PlayerMovement : MonoBehaviour
             // Check touch phase
             if (touch.phase == TouchPhase.Began)
             {
-                isTouching = true;
                 touchHoldTimer = 0f;
             }
             else if (touch.phase == TouchPhase.Stationary || touch.phase == TouchPhase.Moved)
@@ -114,12 +112,7 @@ public class PlayerMovement : MonoBehaviour
                 {
                     Jump();
                 }
-                isTouching = false;
             }
-        }
-        else
-        {
-            isTouching = false;
         }
 
         // Alternative: Double tap for jump (optional)

@@ -1,14 +1,57 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
+using System;
 
 public class MasterLevelInfo : MonoBehaviour
 {
-    public static int coinCount = 0;
-    [SerializeField] GameObject coinDisplay;
+    public static event Action<int> CoinCountChanged;
 
-    void Update()
+    static int coinCount;
+
+    public static int CoinCount
     {
-        coinDisplay.GetComponent<TMPro.TMP_Text>().text = "Coins:" + coinCount;    
+        get => coinCount;
+        private set
+        {
+            if (coinCount == value)
+                return;
+
+            coinCount = value;
+            CoinCountChanged?.Invoke(coinCount);
+        }
+    }
+
+    [SerializeField] TMP_Text coinDisplay;
+
+    void OnEnable()
+    {
+        CoinCountChanged += UpdateDisplay;
+        UpdateDisplay(CoinCount);
+    }
+
+    void OnDisable()
+    {
+        CoinCountChanged -= UpdateDisplay;
+    }
+
+    public static void ResetCoins()
+    {
+        CoinCount = 0;
+    }
+
+    public static void AddCoin(int amount = 1)
+    {
+        CoinCount += amount;
+    }
+
+    void UpdateDisplay(int value)
+    {
+        if (coinDisplay == null)
+            return;
+
+        coinDisplay.enableAutoSizing = true;
+        coinDisplay.fontSizeMin = 20f;
+        coinDisplay.fontSizeMax = 40f;
+        coinDisplay.text = $"Coins: {value:00}";
     }
 }

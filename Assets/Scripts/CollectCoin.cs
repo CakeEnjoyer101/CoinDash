@@ -1,12 +1,17 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class CollectCoin : MonoBehaviour
 {
     void OnTriggerEnter(Collider other)
     {
-        MasterLevelInfo.coinCount += 1;
+        var player = FindObjectOfType<PlayerMovement>();
+        if (player == null)
+            return;
+
+        if (other.transform.root != player.transform)
+            return;
+
+        MasterLevelInfo.AddCoin();
         this.gameObject.SetActive(false);
     }
 }
