@@ -21,6 +21,6 @@ public class StageControls : MonoBehaviour
     void PlayStage(int stageIndex)
     {
         RunGameplayDirector.SetSelectedStage(stageIndex);
-        SceneManager.LoadScene(3);
+        SceneManager.LoadScene("LoadingScene");
     }
 }

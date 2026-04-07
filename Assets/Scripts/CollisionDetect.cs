@@ -37,6 +37,16 @@ public class CollisionDetect : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
+        TryProcessCollision(other);
+    }
+
+    void OnTriggerStay(Collider other)
+    {
+        TryProcessCollision(other);
+    }
+
+    void TryProcessCollision(Collider other)
+    {
         if (isProcessing || Time.time < reviveInvulnerabilityUntil)
             return;
 
@@ -58,7 +68,7 @@ public class CollisionDetect : MonoBehaviour
 
     bool ShouldTriggerCrash(Collider other)
     {
-        if (other == null || other.transform.root != thePlayer.transform)
+        if (other == null || other.transform != thePlayer.transform)
             return false;
 
         Vector3 playerPosition = thePlayer.transform.position;
@@ -83,15 +93,21 @@ public class CollisionDetect : MonoBehaviour
 
         if (obstacle != null)
         {
-            float pushDirection = Mathf.Sign(position.x - obstacle.bounds.center.x);
-            if (Mathf.Approximately(pushDirection, 0f))
-                pushDirection = Random.value > 0.5f ? 1f : -1f;
+            int obstacleLane = playerMovement.GetLaneClosestTo(obstacle.bounds.center.x);
+            int playerLane = playerMovement.TargetLane;
+            int fallbackLane = obstacleLane <= 0 ? 2 : 0;
+            int safeLane = playerLane == obstacleLane
+                ? Mathf.Clamp(playerLane + (playerLane <= 1 ? 1 : -1), 0, 2)
+                : playerLane;
 
-            position.x += pushDirection * 1.35f;
+            if (safeLane == obstacleLane)
+                safeLane = fallbackLane;
+
+            playerMovement.SnapToLane(safeLane);
+            position = thePlayer.transform.position;
             position.z -= 2.2f;
         }
 
-        position.x = Mathf.Clamp(position.x, -3.2f, 3.2f);
         thePlayer.transform.position = position;
         reviveInvulnerabilityUntil = Time.time + 1.35f;
         isProcessing = false;

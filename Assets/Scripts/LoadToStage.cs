@@ -19,6 +19,6 @@ public class LoadToStage : MonoBehaviour
             fadeOut.SetActive(true);
 
         yield return new WaitForSeconds(0.55f);
-        SceneManager.LoadScene(1);
+        SceneManager.LoadScene("CasinoRun");
     }
 }

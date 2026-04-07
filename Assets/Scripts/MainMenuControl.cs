@@ -60,6 +60,7 @@ public class MainMenuControl : MonoBehaviour
 
     public void StartGame()
     {
-        SceneManager.LoadScene(2);
+        hasClicked = true;
+        SceneManager.LoadScene("StageSelect");
     }
 }

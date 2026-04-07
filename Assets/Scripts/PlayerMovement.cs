@@ -3,78 +3,85 @@ using UnityEngine;
 public class PlayerMovement : MonoBehaviour
 {
     public float playerSpeed = 5f;
-    public float horizontalSpeed = 5f;
+    public float laneSwitchSpeed = 12f;
     public float rightLimit = 3.5f;
     public float leftLimit = -3.5f;
+    public float laneSnapTolerance = 0.04f;
 
-    // Jump variables
     public float jumpForce = 8f;
     public float gravity = 20f;
+    public float landingSnapThreshold = 0.12f;
+    public float groundStickDistance = 0.08f;
+    public float landingSmoothSpeed = 16f;
+    public float groundFollowSpeed = 42f;
+    public float groundGraceTime = 0.06f;
+    public float runtimeGroundLift = 0.001f;
     private bool isGrounded = true;
     private float verticalVelocity = 0f;
+    private float lastGroundDetectedTime = -10f;
+    private bool useRuntimeGroundPlane;
+    private float runtimeGroundY;
 
-    // Touch variables for jump
     private float touchHoldTimer = 0f;
-    public float touchHoldForJump = 0.3f; // Hold time for jump on mobile
+    public float touchHoldForJump = 0.3f;
 
-    // Jump control variables
     private bool canJump = true;
     public float jumpCooldown = 0.1f;
     private float lastJumpTime = 0f;
+    private int currentLane = 1;
+    private int targetLane = 1;
+    private float[] lanePositions = new float[3];
+    private Vector2 swipeStart;
+    private bool trackingSwipe;
+
+    public int CurrentLane => currentLane;
+    public int TargetLane => targetLane;
+    public bool IsGrounded => isGrounded;
+    public float CurrentLaneWorldX => lanePositions[Mathf.Clamp(targetLane, 0, lanePositions.Length - 1)];
+
+    void Awake()
+    {
+        RebuildLanePositions();
+        SnapToClosestLane();
+    }
+
+    void OnValidate()
+    {
+        RebuildLanePositions();
+    }
 
     void Update()
     {
-        // Apply gravity
         if (!isGrounded)
-        {
             verticalVelocity -= gravity * Time.deltaTime;
-        }
 
-        // Calculate vertical movement
         Vector3 verticalMovement = new Vector3(0, verticalVelocity * Time.deltaTime, 0);
-
-        // Forward movement
         Vector3 forwardMovement = Vector3.forward * playerSpeed * Time.deltaTime;
-
-        // Apply forward and vertical movement
         transform.Translate(forwardMovement + verticalMovement, Space.World);
+        UpdateLanePosition();
 
 #if UNITY_EDITOR || UNITY_STANDALONE
-        // PC Controls
         HandlePCControls();
 #else
-        // Mobile Controls
         HandleMobileControls();
 #endif
 
-        // Check if grounded
         CheckGrounded();
 
-        // Update jump cooldown
         if (Time.time - lastJumpTime > jumpCooldown)
-        {
             canJump = true;
-        }
     }
 
     void HandlePCControls()
     {
-        // Horizontal movement
-        if (Input.GetKey(KeyCode.A) && transform.position.x > leftLimit)
-        {
-            MoveLeft();
-        }
+        if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow))
+            ShiftLane(-1);
 
-        if (Input.GetKey(KeyCode.D) && transform.position.x < rightLimit)
-        {
-            MoveRight();
-        }
+        if (Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow))
+            ShiftLane(1);
 
-        // Jump with Space key
         if (Input.GetKeyDown(KeyCode.Space) && isGrounded && canJump)
-        {
             Jump();
-        }
     }
 
     void HandleMobileControls()
@@ -83,44 +90,37 @@ public class PlayerMovement : MonoBehaviour
         {
             Touch touch = Input.GetTouch(0);
 
-            // Check touch phase
             if (touch.phase == TouchPhase.Began)
             {
                 touchHoldTimer = 0f;
+                swipeStart = touch.position;
+                trackingSwipe = true;
             }
             else if (touch.phase == TouchPhase.Stationary || touch.phase == TouchPhase.Moved)
             {
                 touchHoldTimer += Time.deltaTime;
-
-                // Horizontal movement based on screen position
-                if (touch.position.x < Screen.width / 2 && transform.position.x > leftLimit)
+                if (trackingSwipe)
                 {
-                    MoveLeft();
-                }
-                else if (touch.position.x > Screen.width / 2 && transform.position.x < rightLimit)
-                {
-                    MoveRight();
+                    Vector2 delta = touch.position - swipeStart;
+                    float minSwipeDistance = Screen.width * 0.08f;
+                    if (Mathf.Abs(delta.x) >= minSwipeDistance && Mathf.Abs(delta.x) > Mathf.Abs(delta.y))
+                    {
+                        ShiftLane(delta.x > 0f ? 1 : -1);
+                        trackingSwipe = false;
+                    }
                 }
             }
             else if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
             {
-                // Check if this was a jump (short tap on bottom half of screen)
                 if (touchHoldTimer < touchHoldForJump &&
-                    touch.position.y < Screen.height / 3 &&
                     isGrounded &&
                     canJump)
                 {
                     Jump();
                 }
-            }
-        }
 
-        // Alternative: Double tap for jump (optional)
-        if (Input.touchCount == 1 && Input.GetTouch(0).tapCount == 2 &&
-            Input.GetTouch(0).phase == TouchPhase.Ended &&
-            isGrounded && canJump)
-        {
-            Jump();
+                trackingSwipe = false;
+            }
         }
     }
 
@@ -137,11 +137,15 @@ public class PlayerMovement : MonoBehaviour
 
     void CheckGrounded()
     {
-        // Raycast downwards to check if grounded
-        float raycastDistance = 0.6f; // Adjust based on your character's height
-        Vector3 raycastOrigin = transform.position + Vector3.up * 0.1f; // Slightly above feet
+        if (useRuntimeGroundPlane)
+        {
+            CheckGroundedAgainstRuntimePlane();
+            return;
+        }
 
-        // Cast ray in multiple positions for better detection
+        float raycastDistance = 0.6f;
+        Vector3 raycastOrigin = transform.position + Vector3.up * 0.1f;
+
         Vector3[] raycastPositions = new Vector3[]
         {
             raycastOrigin,
@@ -152,47 +156,197 @@ public class PlayerMovement : MonoBehaviour
         };
 
         bool wasGrounded = isGrounded;
-        isGrounded = false;
+        bool detectedGround = false;
+        float groundedY = float.NegativeInfinity;
 
         foreach (Vector3 pos in raycastPositions)
         {
-            if (Physics.Raycast(pos, Vector3.down, raycastDistance))
+            if (Physics.Raycast(pos, Vector3.down, out RaycastHit hit, raycastDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
             {
-                isGrounded = true;
-
-                // Reset vertical velocity when landing
-                if (!wasGrounded && verticalVelocity < 0)
-                {
-                    verticalVelocity = 0f;
-                }
-                break;
+                detectedGround = true;
+                groundedY = Mathf.Max(groundedY, hit.point.y);
             }
         }
 
-        // Optional: Visualize raycasts in editor
+        if (detectedGround)
+            lastGroundDetectedTime = Time.time;
+
+        if (!detectedGround)
+        {
+            // Keep a tiny grace window to avoid 1-frame grounded flicker on segment seams.
+            if (wasGrounded && (Time.time - lastGroundDetectedTime) <= groundGraceTime)
+            {
+                isGrounded = true;
+                return;
+            }
+
+            isGrounded = false;
+            return;
+        }
+
+        float distanceToGround = transform.position.y - groundedY;
+        bool descending = verticalVelocity <= 0f;
+        bool shouldSnapToGround = wasGrounded
+            ? distanceToGround <= groundStickDistance
+            : distanceToGround <= landingSnapThreshold;
+
+        if (descending && shouldSnapToGround && float.IsFinite(groundedY))
+        {
+            Vector3 position = transform.position;
+            float snapSpeed = wasGrounded ? groundFollowSpeed : landingSmoothSpeed;
+            position.y = Mathf.MoveTowards(position.y, groundedY, snapSpeed * Time.deltaTime);
+            transform.position = position;
+
+            isGrounded = true;
+            verticalVelocity = 0f;
+            return;
+        }
+
+        isGrounded = false;
+
 #if UNITY_EDITOR
         foreach (Vector3 pos in raycastPositions)
-        {
-            Debug.DrawRay(pos, Vector3.down * raycastDistance, isGrounded ? Color.green : Color.red);
-        }
+            Debug.DrawRay(pos, Vector3.down * raycastDistance, detectedGround ? Color.green : Color.red);
 #endif
     }
 
-    void MoveLeft()
+    void CheckGroundedAgainstRuntimePlane()
     {
-        transform.Translate(Vector3.left * horizontalSpeed * Time.deltaTime, Space.World);
+        float targetGroundY = runtimeGroundY + runtimeGroundLift;
+        bool wasGrounded = isGrounded;
+        float distanceToGround = transform.position.y - targetGroundY;
+        bool descending = verticalVelocity <= 0f;
+        bool ascending = verticalVelocity > 0.01f;
+
+        // Let jump take off cleanly before any ground snapping logic kicks in.
+        if (ascending)
+        {
+            isGrounded = false;
+            return;
+        }
+
+        if (distanceToGround <= 0f)
+        {
+            Vector3 clamped = transform.position;
+            clamped.y = targetGroundY;
+            transform.position = clamped;
+            verticalVelocity = 0f;
+            isGrounded = true;
+            lastGroundDetectedTime = Time.time;
+            return;
+        }
+
+        bool shouldSnapToGround = wasGrounded
+            ? distanceToGround <= groundStickDistance
+            : distanceToGround <= landingSnapThreshold;
+
+        if (descending && shouldSnapToGround)
+        {
+            Vector3 position = transform.position;
+            float snapSpeed = wasGrounded ? groundFollowSpeed : landingSmoothSpeed;
+            position.y = Mathf.MoveTowards(position.y, targetGroundY, snapSpeed * Time.deltaTime);
+            transform.position = position;
+
+            isGrounded = true;
+            verticalVelocity = 0f;
+            lastGroundDetectedTime = Time.time;
+            return;
+        }
+
+        if (wasGrounded && (Time.time - lastGroundDetectedTime) <= groundGraceTime)
+        {
+            isGrounded = true;
+            return;
+        }
+
+        isGrounded = false;
     }
 
-    void MoveRight()
+    public void SetRuntimeGroundPlane(float groundY)
     {
-        transform.Translate(Vector3.right * horizontalSpeed * Time.deltaTime, Space.World);
+        useRuntimeGroundPlane = true;
+        runtimeGroundY = groundY;
+        lastGroundDetectedTime = Time.time;
     }
 
-    // Ensure player stays within limits
-    void LateUpdate()
+    public void ClearRuntimeGroundPlane()
     {
+        useRuntimeGroundPlane = false;
+    }
+
+    void UpdateLanePosition()
+    {
+        float targetX = lanePositions[Mathf.Clamp(targetLane, 0, lanePositions.Length - 1)];
         Vector3 position = transform.position;
+        position.x = Mathf.MoveTowards(position.x, targetX, laneSwitchSpeed * Time.deltaTime);
         position.x = Mathf.Clamp(position.x, leftLimit, rightLimit);
+
+        if (Mathf.Abs(position.x - targetX) <= laneSnapTolerance)
+        {
+            position.x = targetX;
+            currentLane = targetLane;
+        }
+
+        transform.position = position;
+    }
+
+    public void ShiftLane(int direction)
+    {
+        SetLane(targetLane + direction);
+    }
+
+    public void SetLane(int laneIndex)
+    {
+        targetLane = Mathf.Clamp(laneIndex, 0, lanePositions.Length - 1);
+    }
+
+    public void SnapToLane(int laneIndex)
+    {
+        laneIndex = Mathf.Clamp(laneIndex, 0, lanePositions.Length - 1);
+        currentLane = laneIndex;
+        targetLane = laneIndex;
+        Vector3 position = transform.position;
+        position.x = lanePositions[laneIndex];
+        transform.position = position;
+    }
+
+    public int GetLaneClosestTo(float worldX)
+    {
+        int bestLane = 0;
+        float bestDistance = float.MaxValue;
+        for (int i = 0; i < lanePositions.Length; i++)
+        {
+            float distance = Mathf.Abs(worldX - lanePositions[i]);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestLane = i;
+            }
+        }
+
+        return bestLane;
+    }
+
+    public float GetLaneWorldX(int laneIndex)
+    {
+        laneIndex = Mathf.Clamp(laneIndex, 0, lanePositions.Length - 1);
+        return lanePositions[laneIndex];
+    }
+
+    void RebuildLanePositions()
+    {
+        float center = (leftLimit + rightLimit) * 0.5f;
+        lanePositions[0] = leftLimit;
+        lanePositions[1] = center;
+        lanePositions[2] = rightLimit;
+    }
+
+    void SnapToClosestLane()
+    {
+        currentLane = GetLaneClosestTo(transform.position.x);
+        targetLane = currentLane;
+        Vector3 position = transform.position;
+        position.x = lanePositions[currentLane];
         transform.position = position;
     }
 }

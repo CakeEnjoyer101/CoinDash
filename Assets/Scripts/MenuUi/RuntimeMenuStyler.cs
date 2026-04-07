@@ -2,6 +2,8 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -23,6 +25,8 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
 
     Canvas canvas;
     TMP_FontAsset fontAsset;
+    TMP_FontAsset titleFontAsset;
+    TMP_FontAsset bodyFontAsset;
     RuntimeTooltip tooltip;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -77,7 +81,11 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
             return;
 
         ConfigureCanvas(canvas);
-        fontAsset = TMP_Settings.defaultFontAsset;
+        bodyFontAsset = Resources.Load<TMP_FontAsset>("Fonts & Materials/Electronic Highway Sign SDF");
+        titleFontAsset = Resources.Load<TMP_FontAsset>("Fonts & Materials/Bangers SDF");
+        fontAsset = bodyFontAsset != null ? bodyFontAsset : TMP_Settings.defaultFontAsset;
+        if (titleFontAsset == null)
+            titleFontAsset = fontAsset;
 
         DestroyExistingRuntimeRoot();
         tooltip = EnsureTooltip();
@@ -94,6 +102,8 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
                 BuildStageSelect();
                 break;
         }
+
+        ApplyScenePresentation(scene.name);
     }
 
     void ConfigureCanvas(Canvas targetCanvas)
@@ -123,36 +133,43 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
 
         var root = CreateRoot("RuntimeMainMenuUI");
         CreateMainMenuBackground(root);
+        CreateBackgroundDecor(root);
 
-        var card = CreatePanel(root, "CenterCard", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(560f, 420f), new Color(0.05f, 0.08f, 0.14f, 0.88f));
+        var card = CreatePanel(root, "CenterCard", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 8f), new Vector2(700f, 476f), new Color(0.04f, 0.08f, 0.14f, 0.9f));
         card.pivot = new Vector2(0.5f, 0.5f);
+        card.gameObject.AddComponent<UiFloatMotion>().amplitude = 5f;
+        DecoratePanel(card, AccentCyan, AccentGold);
 
-        var eyebrow = CreateText(card, "Eyebrow", "COINDASH", 28, FontStyles.Bold, AccentGold, new Vector2(0f, -46f), new Vector2(260f, 34f));
+        var eyebrow = CreateText(card, "Eyebrow", "COINDASH", 30, FontStyles.Bold, AccentGold, new Vector2(0f, -46f), new Vector2(260f, 34f), true);
         eyebrow.alignment = TextAlignmentOptions.Center;
-        CenterInPanel(eyebrow.rectTransform, new Vector2(0f, 134f));
+        CenterInPanel(eyebrow.rectTransform, new Vector2(0f, 144f));
 
-        var title = CreateText(card, "Title", "Neon Casino Run", 56, FontStyles.Bold, TextPrimary, new Vector2(0f, -94f), new Vector2(470f, 72f));
+        var title = CreateText(card, "Title", "Neon Casino Run", 62, FontStyles.Bold, TextPrimary, new Vector2(0f, -94f), new Vector2(560f, 78f), true);
         title.alignment = TextAlignmentOptions.Center;
-        CenterInPanel(title.rectTransform, new Vector2(0f, 78f));
+        CenterInPanel(title.rectTransform, new Vector2(0f, 86f));
+        title.gameObject.AddComponent<UiPulseGlow>();
 
-        var subtitle = CreateText(card, "Subtitle", "Arcade speed, clean flow and a sharper UI pass.", 20, FontStyles.Normal, TextMuted, new Vector2(0f, -156f), new Vector2(430f, 42f));
+        var subtitle = CreateText(card, "Subtitle", "Three lanes, neon casino energy and a cleaner front end.", 20, FontStyles.Normal, TextMuted, new Vector2(0f, -156f), new Vector2(560f, 58f));
         subtitle.alignment = TextAlignmentOptions.Center;
-        CenterInPanel(subtitle.rectTransform, new Vector2(0f, 18f));
+        CenterInPanel(subtitle.rectTransform, new Vector2(0f, 6f));
 
-        var introButton = CreateButton(card, "EnterButton", "PLAY", "Start the experience", new Vector2(0f, -232f), new Vector2(320f, 82f), AccentBlue, AccentCyan);
-        introButton.onClick.AddListener(menuControl.MenuBeginButton);
-        introButton.gameObject.AddComponent<UiTooltipTrigger>().Initialize(tooltip, "Starts the menu camera move and reveals the main navigation.");
+        var modes = CreateText(card, "ModesText", "3 LANES   /   2 MODES   /   HARDCORE X2", 18f, FontStyles.Bold, new Color(0.79f, 0.87f, 0.96f, 1f), new Vector2(0f, 0f), new Vector2(520f, 28f), true);
+        modes.alignment = TextAlignmentOptions.Center;
+        CenterInPanel(modes.rectTransform, new Vector2(0f, -64f));
 
-        var startButton = CreateButton(card, "StartRunButton", "PLAY", "Go to loading", new Vector2(0f, -232f), new Vector2(320f, 82f), AccentGold, new Color(1f, 0.9f, 0.58f, 1f));
-        startButton.onClick.AddListener(menuControl.StartGame);
-        startButton.gameObject.SetActive(MainMenuControl.hasClicked);
-        startButton.gameObject.AddComponent<UiTooltipTrigger>().Initialize(tooltip, "Loads the run flow and takes you into the gameplay sequence.");
+        var startButton = CreateButton(card, "StartRunButton", "CHOOSE RUN", "Stage select + modes", new Vector2(0f, -232f), new Vector2(360f, 84f), AccentGold, new Color(1f, 0.9f, 0.58f, 1f));
+        startButton.onClick.AddListener(() =>
+        {
+            MainMenuControl.hasClicked = true;
+            menuControl.StartGame();
+        });
+        startButton.gameObject.AddComponent<UiTooltipTrigger>().Initialize(tooltip, "Opens the level select directly. One click, no extra intro screen.");
+        CenterInPanel(startButton.GetComponent<RectTransform>(), new Vector2(0f, -136f));
 
-        var hint = CreateText(card, "Hint", "Tap play to begin. After the first intro, the flow goes straight into the run.", 16, FontStyles.Normal, TextMuted, new Vector2(0f, -336f), new Vector2(430f, 42f));
+        var hint = CreateText(card, "Hint", "One click to stage select. Pick a run, toggle hardcore if you want, and go.", 16, FontStyles.Normal, TextMuted, new Vector2(0f, -336f), new Vector2(560f, 42f));
         hint.alignment = TextAlignmentOptions.Center;
-        CenterInPanel(hint.rectTransform, new Vector2(0f, -144f));
+        CenterInPanel(hint.rectTransform, new Vector2(0f, -198f));
 
-        StartCoroutine(SwapMainMenuButtons(menuControl, introButton.gameObject, startButton.gameObject));
         StartCoroutine(KeepObjectsDisabled("ClickToStart", "Button", "StartGame", "Text (TMP)"));
     }
 
@@ -181,17 +198,20 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
 
         var root = CreateRoot("RuntimeLoadingUI");
         CreatePlainBackdrop(root);
+        CreateBackgroundDecor(root);
 
-        var centerPanel = CreatePanel(root, "LoadingPanel", new Vector2(0.5f, 0.52f), new Vector2(0.5f, 0.52f), Vector2.zero, new Vector2(720f, 320f), PanelColor);
+        var centerPanel = CreatePanel(root, "LoadingPanel", new Vector2(0.5f, 0.52f), new Vector2(0.5f, 0.52f), Vector2.zero, new Vector2(700f, 310f), PanelColor);
+        DecoratePanel(centerPanel, AccentCyan, AccentGold);
 
-        CreateText(centerPanel, "Eyebrow", "PREPARING RUN", 20, FontStyles.Bold, AccentCyan, new Vector2(40f, -30f), new Vector2(240f, 26f));
-        CreateText(centerPanel, "Title", "Loading The Neon Floor", 44, FontStyles.Bold, TextPrimary, new Vector2(38f, -58f), new Vector2(540f, 54f));
+        CreateText(centerPanel, "Eyebrow", "PREPARING RUN", 20, FontStyles.Bold, AccentCyan, new Vector2(40f, -30f), new Vector2(240f, 26f), true);
+        CreateText(centerPanel, "Title", "Loading The Neon Floor", 48, FontStyles.Bold, TextPrimary, new Vector2(38f, -58f), new Vector2(540f, 54f), true);
         CreateText(centerPanel, "Body", "Align your route, catch the rhythm, and get ready to weave through the casino skyline.", 20, FontStyles.Normal, TextMuted, new Vector2(42f, -112f), new Vector2(560f, 58f));
 
-        var progressBar = CreateImage(centerPanel, "ProgressBar", AccentBlue, new Vector2(42f, -228f), new Vector2(636f, 12f));
+        var progressBarBack = CreateImage(centerPanel, "ProgressBarBack", new Color(0.08f, 0.14f, 0.22f, 1f), new Vector2(42f, -214f), new Vector2(616f, 16f));
+        var progressBar = CreateImage(centerPanel, "ProgressBar", AccentBlue, new Vector2(42f, -214f), new Vector2(616f, 12f));
         progressBar.gameObject.AddComponent<UiProgressPulse>();
 
-        var loadingText = CreateText(centerPanel, "LoadingLabel", "Streaming environment", 18, FontStyles.Bold, AccentGold, new Vector2(42f, -250f), new Vector2(280f, 28f));
+        var loadingText = CreateText(centerPanel, "LoadingLabel", "Streaming environment", 18, FontStyles.Bold, AccentGold, new Vector2(42f, -246f), new Vector2(280f, 28f));
         loadingText.gameObject.AddComponent<UiLoadingDots>().prefix = "Streaming environment";
 
         var tipsPanel = CreatePanel(root, "TipsPanel", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -40f), new Vector2(760f, 68f), SecondaryPanelColor);
@@ -200,30 +220,56 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
 
     void BuildStageSelect()
     {
-        DisableObjectsNamed("StageName", "Text (TMP)", "SelectAndPlay");
+        DisableObjectsNamed("StageName", "Text (TMP)", "SelectAndPlay", "Cube");
 
         var stageControls = FindObjectOfType<StageControls>(true);
         var root = CreateRoot("RuntimeStageSelectUI");
         CreatePlainBackdrop(root);
+        CreateBackgroundDecor(root);
+        var content = CreateSafeArea(root, "StageSelectContent", 1220f);
 
-        var title = CreateText(root, "StageTitle", "Choose Your Run", 44f, FontStyles.Bold, TextPrimary, Vector2.zero, new Vector2(520f, 60f));
+        var title = CreateText(content, "StageTitle", "Choose Your Run", 52f, FontStyles.Bold, TextPrimary, Vector2.zero, new Vector2(520f, 60f), true);
         title.alignment = TextAlignmentOptions.Center;
         CenterInPanel(title.rectTransform, new Vector2(0f, 250f));
 
-        var leftCard = CreatePanel(root, "StageCardOne", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-230f, 30f), new Vector2(360f, 280f), SecondaryPanelColor);
-        var rightCard = CreatePanel(root, "StageCardTwo", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(230f, 30f), new Vector2(360f, 280f), SecondaryPanelColor);
+        var infoPanel = CreatePanel(content, "StageInfoPanel", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 18f), new Vector2(560f, 344f), new Color(0.04f, 0.08f, 0.14f, 0.88f));
+        DecoratePanel(infoPanel, AccentCyan, AccentGold);
+        var badge = CreateText(infoPanel, "StageBadge", "LEVEL 1", 18f, FontStyles.Bold, AccentCyan, new Vector2(42f, -34f), new Vector2(180f, 22f), true);
+        var name = CreateText(infoPanel, "StageName", "Token Sprint", 44f, FontStyles.Bold, TextPrimary, new Vector2(42f, -82f), new Vector2(430f, 48f), true);
+        var objective = CreateText(infoPanel, "StageObjective", "Collect as many tokens as possible. Follow dense token trails and jump for high arcs.", 20f, FontStyles.Normal, TextMuted, new Vector2(42f, -150f), new Vector2(438f, 90f));
+        var detail = CreateText(infoPanel, "StageDetail", "A cleaner route with wider spacing. This stage is all about score and efficient token collection.", 18f, FontStyles.Normal, TextMuted, new Vector2(42f, -256f), new Vector2(438f, 76f));
 
-        BuildStageCard(leftCard, "LEVEL 1", "Skyline Start", "Cleaner route with wider spacing and a smoother intro into the run.", "Play Level 1", stageControls != null ? (UnityEngine.Events.UnityAction)stageControls.PressPlay : null, "Loads the first route with balanced spacing and a cleaner obstacle rhythm.");
-        BuildStageCard(rightCard, "LEVEL 2", "Jackpot Rush", "Faster tempo, tighter spacing and a more aggressive coin pattern for risk-reward play.", "Play Level 2", stageControls != null ? (UnityEngine.Events.UnityAction)stageControls.PressPlaySecond : null, "Loads the second route with a faster rhythm and denser obstacle pattern.");
+        var leftArrow = CreateButton(content, "LeftStageArrow", "<", "", new Vector2(0f, 0f), new Vector2(82f, 82f), new Color(0.08f, 0.14f, 0.22f, 0.96f), AccentCyan);
+        var rightArrow = CreateButton(content, "RightStageArrow", ">", "", new Vector2(0f, 0f), new Vector2(82f, 82f), new Color(0.08f, 0.14f, 0.22f, 0.96f), AccentCyan);
+        var playButton = CreateButton(content, "StagePlayButton", "PLAY LEVEL 1", "Launch selected run", new Vector2(0f, 0f), new Vector2(320f, 78f), AccentBlue, AccentCyan);
+        var hardcoreButton = CreateButton(content, "HardcoreButton", "HARDCORE OFF", "x2 coins / mega speed", new Vector2(0f, 0f), new Vector2(320f, 64f), new Color(0.11f, 0.16f, 0.23f, 0.96f), new Color(1f, 0.62f, 0.26f, 0.55f));
 
-        var backButton = CreateButton(root, "BackButton", "Back", "Return to menu", new Vector2(0f, 0f), new Vector2(180f, 62f), new Color(0.18f, 0.23f, 0.31f, 1f), TextPrimary);
+        CenterInPanel(playButton.GetComponent<RectTransform>(), new Vector2(0f, -240f));
+        CenterInPanel(hardcoreButton.GetComponent<RectTransform>(), new Vector2(0f, -312f));
+        CenterInPanel(leftArrow.GetComponent<RectTransform>(), new Vector2(-368f, 18f));
+        CenterInPanel(rightArrow.GetComponent<RectTransform>(), new Vector2(368f, 18f));
+
+        var stagePreview = root.gameObject.AddComponent<RuntimeStageSelectCarousel>();
+        stagePreview.Initialize(
+            null,
+            badge,
+            name,
+            objective,
+            detail,
+            leftArrow,
+            rightArrow,
+            playButton,
+            hardcoreButton,
+            stageControls);
+
+        var backButton = CreateButton(content, "BackButton", "Back", "Return to menu", new Vector2(0f, 0f), new Vector2(180f, 62f), new Color(0.18f, 0.23f, 0.31f, 1f), TextPrimary);
         backButton.onClick.AddListener(() => SceneManager.LoadScene(0));
         backButton.gameObject.AddComponent<UiTooltipTrigger>().Initialize(tooltip, "Returns to the main menu without starting a run.");
         var backRect = backButton.GetComponent<RectTransform>();
         backRect.anchorMin = new Vector2(0f, 1f);
         backRect.anchorMax = new Vector2(0f, 1f);
         backRect.pivot = new Vector2(0f, 1f);
-        backRect.anchoredPosition = new Vector2(48f, -48f);
+        backRect.anchoredPosition = new Vector2(24f, -24f);
     }
 
     RectTransform CreateRoot(string name)
@@ -280,51 +326,161 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
 
     void CreateBackgroundDecor(RectTransform root)
     {
-        var veil = CreateImage(root, "BackgroundVeil", BackgroundTint, Vector2.zero, Vector2.zero);
+        var veil = CreateImage(root, "BackgroundVeil", new Color(0.02f, 0.04f, 0.08f, 0.22f), Vector2.zero, Vector2.zero);
         var veilRect = veil.rectTransform;
         veilRect.anchorMin = Vector2.zero;
         veilRect.anchorMax = Vector2.one;
         veilRect.offsetMin = Vector2.zero;
         veilRect.offsetMax = Vector2.zero;
-
-        CreateGlow(root, "GlowLeft", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(18f, 40f), new Vector2(220f, 540f), new Color(0.08f, 0.34f, 0.87f, 0.12f));
-        CreateGlow(root, "GlowRight", new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-18f, 0f), new Vector2(180f, 520f), new Color(0.12f, 0.92f, 0.98f, 0.1f));
-        CreateGlow(root, "GlowTop", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -4f), new Vector2(680f, 96f), new Color(1f, 0.75f, 0.28f, 0.05f));
     }
 
     void CreatePlainBackdrop(RectTransform root)
     {
-        var veil = CreateImage(root, "PlainBackdrop", new Color(0.04f, 0.07f, 0.12f, 0.58f), Vector2.zero, Vector2.zero);
+        var veil = CreateImage(root, "PlainBackdrop", new Color(0.03f, 0.05f, 0.09f, 0.82f), Vector2.zero, Vector2.zero);
         var veilRect = veil.rectTransform;
         veilRect.anchorMin = Vector2.zero;
         veilRect.anchorMax = Vector2.one;
         veilRect.offsetMin = Vector2.zero;
         veilRect.offsetMax = Vector2.zero;
-    }
-
-    void BuildStageCard(RectTransform card, string badge, string title, string description, string buttonLabel, UnityEngine.Events.UnityAction onClick, string tooltipMessage)
-    {
-        var badgeText = CreateText(card, $"{badge}Badge", badge, 16f, FontStyles.Bold, AccentGold, new Vector2(24f, -24f), new Vector2(120f, 20f));
-        badgeText.alignment = TextAlignmentOptions.TopLeft;
-        var titleText = CreateText(card, $"{title}Title", title, 32f, FontStyles.Bold, TextPrimary, new Vector2(24f, -54f), new Vector2(260f, 40f));
-        var bodyText = CreateText(card, $"{title}Description", description, 17f, FontStyles.Normal, TextMuted, new Vector2(24f, -102f), new Vector2(312f, 70f));
-
-        if (onClick != null)
-        {
-            var playButton = CreateButton(card, $"{title}Button", buttonLabel, "Launch this run", new Vector2(24f, -188f), new Vector2(312f, 62f), AccentBlue, AccentCyan);
-            playButton.onClick.AddListener(onClick);
-            playButton.gameObject.AddComponent<UiTooltipTrigger>().Initialize(tooltip, tooltipMessage);
-        }
     }
 
     void CreateMainMenuBackground(RectTransform root)
     {
-        var veil = CreateImage(root, "MainMenuBackground", new Color(0.04f, 0.07f, 0.12f, 0.58f), Vector2.zero, Vector2.zero);
+        var veil = CreateImage(root, "MainMenuBackground", new Color(0.03f, 0.05f, 0.09f, 0.76f), Vector2.zero, Vector2.zero);
         var veilRect = veil.rectTransform;
         veilRect.anchorMin = Vector2.zero;
         veilRect.anchorMax = Vector2.one;
         veilRect.offsetMin = Vector2.zero;
         veilRect.offsetMax = Vector2.zero;
+    }
+
+    void DecoratePanel(RectTransform panel, Color primary, Color secondary)
+    {
+        if (panel == null)
+            return;
+
+        var topBar = CreateImage(panel, "TopBar", primary, new Vector2(0f, 0f), new Vector2(0f, 0f));
+        topBar.rectTransform.anchorMin = new Vector2(0f, 1f);
+        topBar.rectTransform.anchorMax = new Vector2(1f, 1f);
+        topBar.rectTransform.pivot = new Vector2(0.5f, 1f);
+        topBar.rectTransform.offsetMin = new Vector2(18f, -4f);
+        topBar.rectTransform.offsetMax = new Vector2(-18f, 0f);
+        topBar.gameObject.AddComponent<UiPulseGlow>();
+
+        var bottomBar = CreateImage(panel, "BottomBar", new Color(secondary.r, secondary.g, secondary.b, 0.38f), new Vector2(0f, 0f), new Vector2(0f, 0f));
+        bottomBar.rectTransform.anchorMin = new Vector2(0f, 0f);
+        bottomBar.rectTransform.anchorMax = new Vector2(1f, 0f);
+        bottomBar.rectTransform.pivot = new Vector2(0.5f, 0f);
+        bottomBar.rectTransform.offsetMin = new Vector2(18f, 0f);
+        bottomBar.rectTransform.offsetMax = new Vector2(-18f, 2f);
+    }
+
+    void ApplyScenePresentation(string sceneName)
+    {
+        DestroyExistingPresentation();
+
+        Camera[] cameras = FindObjectsOfType<Camera>(true);
+        foreach (var camera in cameras)
+        {
+            if (camera == null)
+                continue;
+
+            camera.allowHDR = true;
+            var cameraData = camera.GetUniversalAdditionalCameraData();
+            cameraData.renderPostProcessing = true;
+            cameraData.antialiasing = AntialiasingMode.FastApproximateAntialiasing;
+            cameraData.antialiasingQuality = AntialiasingQuality.Medium;
+        }
+
+        var volumeObject = new GameObject("RuntimeScenePresentation", typeof(Volume));
+        var volume = volumeObject.GetComponent<Volume>();
+        volume.isGlobal = true;
+        volume.priority = 100f;
+        volume.weight = 1f;
+        volume.sharedProfile = BuildPresentationProfile(sceneName);
+
+        CreateSceneLightRig(sceneName);
+    }
+
+    void DestroyExistingPresentation()
+    {
+        var presentation = GameObject.Find("RuntimeScenePresentation");
+        if (presentation != null)
+            Destroy(presentation);
+
+        var lightRig = GameObject.Find("RuntimeSceneLightRig");
+        if (lightRig != null)
+            Destroy(lightRig);
+    }
+
+    VolumeProfile BuildPresentationProfile(string sceneName)
+    {
+        var profile = ScriptableObject.CreateInstance<VolumeProfile>();
+
+        var bloom = profile.Add<Bloom>(true);
+        bloom.threshold.Override(0.72f);
+        bloom.intensity.Override(sceneName == "LoadingScene" ? 0.85f : 0.6f);
+        bloom.scatter.Override(0.82f);
+        bloom.highQualityFiltering.Override(true);
+
+        var tone = profile.Add<Tonemapping>(true);
+        tone.mode.Override(TonemappingMode.ACES);
+
+        var color = profile.Add<ColorAdjustments>(true);
+        color.postExposure.Override(sceneName == "LoadingScene" ? 0.22f : 0.14f);
+        color.contrast.Override(22f);
+        color.saturation.Override(8f);
+
+        var vignette = profile.Add<Vignette>(true);
+        vignette.intensity.Override(0.18f);
+        vignette.smoothness.Override(0.82f);
+
+        return profile;
+    }
+
+    void CreateSceneLightRig(string sceneName)
+    {
+        var mainCamera = Camera.main;
+        if (mainCamera == null)
+            return;
+
+        var rig = new GameObject("RuntimeSceneLightRig").transform;
+        Vector3 focusPoint = mainCamera.transform.position + mainCamera.transform.forward * 10f;
+
+        CreateSceneSpotLight(rig, "KeyLight", mainCamera.transform.position + (mainCamera.transform.right * -4.5f) + (mainCamera.transform.up * 3.5f) + (mainCamera.transform.forward * 7f), focusPoint, new Color(0.22f, 0.82f, 1f, 1f), 7.4f);
+        CreateSceneSpotLight(rig, "FillLight", mainCamera.transform.position + (mainCamera.transform.right * 4.8f) + (mainCamera.transform.up * 2.8f) + (mainCamera.transform.forward * 8.2f), focusPoint + (mainCamera.transform.right * 1.8f), new Color(1f, 0.68f, 0.28f, 1f), 6.1f);
+        CreateScenePointLight(rig, "AccentGlow", mainCamera.transform.position + (mainCamera.transform.up * 1.6f) + (mainCamera.transform.forward * 5.6f), sceneName == "LoadingScene" ? new Color(0.14f, 0.88f, 1f, 1f) : new Color(0.16f, 0.54f, 1f, 1f), 22f, 2.8f);
+    }
+
+    void CreateSceneSpotLight(Transform parent, string name, Vector3 position, Vector3 lookAt, Color color, float intensity)
+    {
+        var lightObject = new GameObject(name, typeof(Light));
+        lightObject.transform.SetParent(parent, false);
+        lightObject.transform.position = position;
+        lightObject.transform.rotation = Quaternion.LookRotation((lookAt - position).normalized, Vector3.up);
+        var light = lightObject.GetComponent<Light>();
+        light.type = LightType.Spot;
+        light.color = color;
+        light.range = 36f;
+        light.intensity = intensity;
+        light.spotAngle = 54f;
+        light.innerSpotAngle = 28f;
+        light.shadows = LightShadows.None;
+        light.renderMode = LightRenderMode.ForceVertex;
+    }
+
+    void CreateScenePointLight(Transform parent, string name, Vector3 position, Color color, float range, float intensity)
+    {
+        var lightObject = new GameObject(name, typeof(Light));
+        lightObject.transform.SetParent(parent, false);
+        lightObject.transform.position = position;
+        var light = lightObject.GetComponent<Light>();
+        light.type = LightType.Point;
+        light.color = color;
+        light.range = range;
+        light.intensity = intensity;
+        light.shadows = LightShadows.None;
+        light.renderMode = LightRenderMode.ForceVertex;
     }
 
     Image CreateGlow(RectTransform parent, string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 anchoredPosition, Vector2 size, Color color)
@@ -370,7 +526,7 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
         return image;
     }
 
-    TMP_Text CreateText(RectTransform parent, string name, string text, float fontSize, FontStyles style, Color color, Vector2 anchoredPosition, Vector2 size)
+    TMP_Text CreateText(RectTransform parent, string name, string text, float fontSize, FontStyles style, Color color, Vector2 anchoredPosition, Vector2 size, bool useTitleFont = false)
     {
         var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
         go.transform.SetParent(parent, false);
@@ -383,7 +539,7 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
         rect.sizeDelta = size;
 
         var tmp = go.GetComponent<TextMeshProUGUI>();
-        tmp.font = fontAsset;
+        tmp.font = useTitleFont ? titleFontAsset : fontAsset;
         tmp.text = text;
         tmp.fontSize = fontSize;
         tmp.fontStyle = style;
@@ -455,6 +611,7 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
         image.sprite = GetWhiteSprite();
         image.color = fill;
         image.raycastTarget = true;
+        go.AddComponent<UiButtonMotion>();
 
         var button = go.GetComponent<Button>();
         var colors = button.colors;
@@ -470,20 +627,7 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
         outline.effectColor = outlineColor;
         outline.effectDistance = new Vector2(2f, -2f);
 
-        var shine = new GameObject("Shine", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        shine.transform.SetParent(go.transform, false);
-        var shineRect = shine.GetComponent<RectTransform>();
-        shineRect.anchorMin = new Vector2(0f, 0f);
-        shineRect.anchorMax = new Vector2(0f, 1f);
-        shineRect.pivot = new Vector2(0f, 0.5f);
-        shineRect.anchoredPosition = new Vector2(0f, 0f);
-        shineRect.sizeDelta = new Vector2(10f, 0f);
-        var shineImage = shine.GetComponent<Image>();
-        shineImage.sprite = GetWhiteSprite();
-        shineImage.color = new Color(1f, 1f, 1f, 0f);
-        shineImage.raycastTarget = false;
-
-        var labelText = CreateText(rect, "Label", label, 23f, FontStyles.Bold, TextPrimary, new Vector2(0f, 0f), size);
+        var labelText = CreateText(rect, "Label", label, 23f, FontStyles.Bold, TextPrimary, new Vector2(0f, 0f), size, true);
         labelText.alignment = TextAlignmentOptions.Center;
         var labelRect = labelText.rectTransform;
         labelRect.anchorMin = Vector2.zero;
@@ -541,26 +685,332 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
         if (whiteSprite != null)
             return whiteSprite;
 
-        var texture = new Texture2D(32, 32, TextureFormat.RGBA32, false);
-        var pixels = new Color[32 * 32];
+        var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+        texture.SetPixels(new[] { Color.white, Color.white, Color.white, Color.white });
+        texture.Apply();
+        whiteSprite = Sprite.Create(texture, new Rect(0f, 0f, 2f, 2f), new Vector2(0.5f, 0.5f), 100f);
+        return whiteSprite;
+    }
+}
 
-        for (int y = 0; y < 32; y++)
+public sealed class RuntimeStageSelectCarousel : MonoBehaviour
+{
+    sealed class StageEntry
+    {
+        public int stageIndex;
+        public string badge;
+        public string title;
+        public string objective;
+        public string detail;
+        public Color primary;
+        public Color secondary;
+    }
+
+    readonly StageEntry[] entries =
+    {
+        new()
         {
-            for (int x = 0; x < 32; x++)
-            {
-                float cornerX = x < 16 ? x : 31 - x;
-                float cornerY = y < 16 ? y : 31 - y;
-                bool outsideCorner = cornerX < 6 && cornerY < 6 &&
-                    Vector2.Distance(new Vector2(cornerX, cornerY), new Vector2(6f, 6f)) > 6f;
+            stageIndex = 0,
+            badge = "LEVEL 1",
+            title = "Token Sprint",
+            objective = "Collect as many tokens as possible. Follow dense token trails and jump for high arcs.",
+            detail = "A cleaner route with wider spacing. This stage is all about score and efficient token collection.",
+            primary = new Color(0.12f, 0.54f, 0.97f, 1f),
+            secondary = new Color(1f, 0.78f, 0.34f, 1f)
+        },
+        new()
+        {
+            stageIndex = 1,
+            badge = "LEVEL 2",
+            title = "Survival Rush",
+            objective = "Run as long as possible. Moving arcade machines sweep across lanes and punish late reactions.",
+            detail = "Tighter spacing, faster pressure and side-moving blockers. Distance matters more than tokens here.",
+            primary = new Color(1f, 0.48f, 0.22f, 1f),
+            secondary = new Color(0.29f, 0.93f, 0.96f, 1f)
+        }
+    };
 
-                pixels[(y * 32) + x] = outsideCorner ? new Color(1f, 1f, 1f, 0f) : Color.white;
-            }
+    RawImage previewImage;
+    TMP_Text badgeLabel;
+    TMP_Text titleLabel;
+    TMP_Text objectiveLabel;
+    TMP_Text detailLabel;
+    Button leftArrow;
+    Button rightArrow;
+    Button playButton;
+    Button hardcoreButton;
+    StageControls stageControls;
+    int currentIndex;
+    readonly bool[] hardcoreEnabled = new bool[2];
+    RenderTexture previewTexture;
+    GameObject previewRoot;
+    Transform rotatingCube;
+
+    public void Initialize(
+        Graphic previewHost,
+        TMP_Text badge,
+        TMP_Text title,
+        TMP_Text objective,
+        TMP_Text detail,
+        Button left,
+        Button right,
+        Button play,
+        Button hardcore,
+        StageControls controls)
+    {
+        stageControls = controls;
+        badgeLabel = badge;
+        titleLabel = title;
+        objectiveLabel = objective;
+        detailLabel = detail;
+        leftArrow = left;
+        rightArrow = right;
+        playButton = play;
+        hardcoreButton = hardcore;
+
+        if (previewHost != null)
+        {
+            var previewGo = new GameObject("PreviewImage", typeof(RectTransform), typeof(RawImage));
+            previewGo.transform.SetParent(previewHost.transform, false);
+            var rect = previewGo.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = new Vector2(16f, 16f);
+            rect.offsetMax = new Vector2(-16f, -16f);
+            previewImage = previewGo.GetComponent<RawImage>();
+
+            CreatePreviewWorld();
         }
 
-        texture.SetPixels(pixels);
-        texture.Apply();
-        whiteSprite = Sprite.Create(texture, new Rect(0f, 0f, 32f, 32f), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(8f, 8f, 8f, 8f));
-        return whiteSprite;
+        if (leftArrow != null)
+            leftArrow.onClick.AddListener(() => SwitchStage(-1));
+        if (rightArrow != null)
+            rightArrow.onClick.AddListener(() => SwitchStage(1));
+        playButton.onClick.AddListener(PlayCurrentStage);
+        if (hardcoreButton != null)
+            hardcoreButton.onClick.AddListener(ToggleHardcore);
+
+        RefreshView();
+    }
+
+    void CreatePreviewWorld()
+    {
+        previewTexture = new RenderTexture(768, 768, 16)
+        {
+            antiAliasing = 2
+        };
+
+        previewRoot = new GameObject("RuntimeStagePreviewWorld");
+        previewRoot.hideFlags = HideFlags.HideAndDontSave;
+
+        var cameraObject = new GameObject("PreviewCamera");
+        cameraObject.transform.SetParent(previewRoot.transform, false);
+        cameraObject.transform.position = new Vector3(0f, 0.8f, -4.6f);
+        cameraObject.transform.LookAt(new Vector3(0f, 0.35f, 0f));
+        var camera = cameraObject.AddComponent<Camera>();
+        camera.clearFlags = CameraClearFlags.SolidColor;
+        camera.backgroundColor = new Color(0.01f, 0.03f, 0.07f, 1f);
+        camera.fieldOfView = 26f;
+        camera.targetTexture = previewTexture;
+
+        var lightObject = new GameObject("PreviewLight");
+        lightObject.transform.SetParent(previewRoot.transform, false);
+        lightObject.transform.rotation = Quaternion.Euler(42f, -32f, 0f);
+        var light = lightObject.AddComponent<Light>();
+        light.type = LightType.Directional;
+        light.intensity = 1.35f;
+        light.color = Color.white;
+
+        rotatingCube = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
+        rotatingCube.name = "PreviewCube";
+        rotatingCube.SetParent(previewRoot.transform, false);
+        rotatingCube.localScale = new Vector3(2.1f, 1.3f, 2.1f);
+        rotatingCube.localRotation = Quaternion.Euler(-18f, 28f, 0f);
+
+        var topStripe = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
+        topStripe.SetParent(rotatingCube, false);
+        topStripe.localPosition = new Vector3(0f, 0.58f, 0f);
+        topStripe.localScale = new Vector3(1.05f, 0.08f, 1.05f);
+
+        var centerLane = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
+        centerLane.SetParent(rotatingCube, false);
+        centerLane.localPosition = new Vector3(0f, 0.67f, 0f);
+        centerLane.localScale = new Vector3(0.16f, 0.04f, 1.02f);
+
+        var leftLane = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
+        leftLane.SetParent(rotatingCube, false);
+        leftLane.localPosition = new Vector3(-0.42f, 0.67f, 0f);
+        leftLane.localScale = new Vector3(0.12f, 0.04f, 1.02f);
+
+        var rightLane = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
+        rightLane.SetParent(rotatingCube, false);
+        rightLane.localPosition = new Vector3(0.42f, 0.67f, 0f);
+        rightLane.localScale = new Vector3(0.12f, 0.04f, 1.02f);
+
+        var machine = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
+        machine.SetParent(rotatingCube, false);
+        machine.localPosition = new Vector3(0f, 0.92f, 0.12f);
+        machine.localScale = new Vector3(0.42f, 0.48f, 0.36f);
+
+        var screen = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
+        screen.SetParent(machine, false);
+        screen.localPosition = new Vector3(0f, 0.12f, -0.56f);
+        screen.localScale = new Vector3(0.72f, 0.34f, 0.12f);
+
+        previewImage.texture = previewTexture;
+    }
+
+    void RefreshView()
+    {
+        var entry = entries[currentIndex];
+        badgeLabel.text = entry.badge;
+        titleLabel.text = entry.title;
+        objectiveLabel.text = entry.objective;
+        detailLabel.text = entry.detail;
+        SetButtonText(playButton, $"PLAY {entry.badge}", hardcoreEnabled[currentIndex] ? "Launch hardcore run" : "Launch selected run");
+        RefreshHardcoreButton(entry);
+
+        if (leftArrow != null)
+            leftArrow.gameObject.SetActive(currentIndex > 0);
+        if (rightArrow != null)
+            rightArrow.gameObject.SetActive(currentIndex < entries.Length - 1);
+
+        ApplyPreviewPalette(entry);
+    }
+
+    void ApplyPreviewPalette(StageEntry entry)
+    {
+        if (rotatingCube == null)
+            return;
+
+        var renderers = rotatingCube.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            var renderer = renderers[i];
+            var material = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+            Color color = i == 0
+                ? entry.primary
+                : i == 1
+                    ? entry.secondary
+                    : i == 2 || i == 3 || i == 4
+                        ? new Color(0.04f, 0.08f, 0.14f, 1f)
+                        : entry.secondary;
+
+            if (material.HasProperty("_BaseColor"))
+                material.SetColor("_BaseColor", color);
+            else if (material.HasProperty("_Color"))
+                material.SetColor("_Color", color);
+
+            if (material.HasProperty("_Smoothness"))
+                material.SetFloat("_Smoothness", 0.45f);
+
+            renderer.sharedMaterial = material;
+        }
+    }
+
+    void SwitchStage(int direction)
+    {
+        currentIndex = Mathf.Clamp(currentIndex + direction, 0, entries.Length - 1);
+        RefreshView();
+    }
+
+    void ToggleHardcore()
+    {
+        hardcoreEnabled[currentIndex] = !hardcoreEnabled[currentIndex];
+        RefreshView();
+    }
+
+    void PlayCurrentStage()
+    {
+        if (stageControls == null)
+            return;
+
+        RunGameplayDirector.SetHardcoreMode(hardcoreEnabled[currentIndex]);
+
+        if (entries[currentIndex].stageIndex == 0)
+            stageControls.PressPlay();
+        else
+            stageControls.PressPlaySecond();
+    }
+
+    void RefreshHardcoreButton(StageEntry entry)
+    {
+        if (hardcoreButton == null)
+            return;
+
+        bool isEnabled = hardcoreEnabled[currentIndex];
+        Color fill = isEnabled
+            ? new Color(0.98f, 0.47f, 0.19f, 1f)
+            : new Color(0.11f, 0.16f, 0.23f, 0.96f);
+        Color outline = isEnabled
+            ? entry.secondary
+            : new Color(1f, 0.62f, 0.26f, 0.55f);
+
+        ApplyButtonStyle(hardcoreButton, fill, outline);
+        SetButtonText(
+            hardcoreButton,
+            isEnabled ? "HARDCORE ON" : "HARDCORE OFF",
+            isEnabled ? "x2 coins / ultra speed" : "x2 coins / mega speed");
+    }
+
+    void ApplyButtonStyle(Button button, Color fill, Color outlineColor)
+    {
+        if (button == null)
+            return;
+
+        var image = button.GetComponent<Image>();
+        if (image != null)
+            image.color = fill;
+
+        var colors = button.colors;
+        colors.normalColor = fill;
+        colors.highlightedColor = Color.Lerp(fill, Color.white, 0.1f);
+        colors.pressedColor = Color.Lerp(fill, Color.black, 0.12f);
+        colors.selectedColor = colors.highlightedColor;
+        colors.disabledColor = new Color(fill.r, fill.g, fill.b, 0.45f);
+        colors.fadeDuration = 0.08f;
+        button.colors = colors;
+
+        var outline = button.GetComponent<Outline>();
+        if (outline != null)
+            outline.effectColor = outlineColor;
+    }
+
+    void SetButtonText(Button button, string label, string subLabel)
+    {
+        if (button == null)
+            return;
+
+        var labelTransform = button.transform.Find("Label");
+        if (labelTransform != null)
+        {
+            var labelText = labelTransform.GetComponent<TMP_Text>();
+            if (labelText != null)
+                labelText.text = label;
+        }
+
+        var subLabelTransform = button.transform.Find("SubLabel");
+        if (subLabelTransform != null)
+        {
+            var subLabelText = subLabelTransform.GetComponent<TMP_Text>();
+            if (subLabelText != null)
+                subLabelText.text = subLabel;
+        }
+    }
+
+    void Update()
+    {
+        if (rotatingCube != null)
+            rotatingCube.Rotate(new Vector3(17f, 28f, 0f) * Time.unscaledDeltaTime, Space.Self);
+    }
+
+    void OnDestroy()
+    {
+        if (previewTexture != null)
+            previewTexture.Release();
+
+        if (previewRoot != null)
+            Destroy(previewRoot);
     }
 }
 

@@ -7,6 +7,7 @@ public class MasterLevelInfo : MonoBehaviour
     public static event Action<int> CoinCountChanged;
 
     static int coinCount;
+    static int coinMultiplier = 1;
 
     public static int CoinCount
     {
@@ -39,9 +40,14 @@ public class MasterLevelInfo : MonoBehaviour
         CoinCount = 0;
     }
 
+    public static void SetCoinMultiplier(int multiplier)
+    {
+        coinMultiplier = Mathf.Max(1, multiplier);
+    }
+
     public static void AddCoin(int amount = 1)
     {
-        CoinCount += amount;
+        CoinCount += amount * coinMultiplier;
     }
 
     void UpdateDisplay(int value)

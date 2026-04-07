@@ -8,6 +8,12 @@ public class SegmentGenerator : MonoBehaviour
     [SerializeField] int zPos = 0;
     [SerializeField] bool creatingSegment = false;
     [SerializeField] int segmentNum;
+    [SerializeField] float segmentSpawnDelay = 3f;
+
+    public void SetSpawnDelay(float delay)
+    {
+        segmentSpawnDelay = Mathf.Max(0.8f, delay);
+    }
 
     void Update()
     {
@@ -24,7 +30,7 @@ public class SegmentGenerator : MonoBehaviour
         segmentNum = Random.Range(0, 3);
         Instantiate(segment[segmentNum], new Vector3(0, 0, zPos), Quaternion.identity);
         zPos += 40;
-        yield return new WaitForSeconds(4);
+        yield return new WaitForSeconds(segmentSpawnDelay);
         creatingSegment = false;
     }
 }
