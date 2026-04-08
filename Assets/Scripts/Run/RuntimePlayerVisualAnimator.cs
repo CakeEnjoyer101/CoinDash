@@ -1,285 +1,424 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
+using UnityEngine.Animations;
+using UnityEngine.Playables;
 
 public sealed class RuntimePlayerVisualAnimator : MonoBehaviour
 {
-    struct BonePose
+    enum VisualState
     {
-        public Transform bone;
-        public Quaternion baseRotation;
-        public Vector3 runEulerScale;
-        public float runPhase;
-        public Vector3 jumpEulerScale;
+        None = -1,
+        Run = 0,
+        Jump = 1,
+        Strafe = 2,
+        Stumble = 3
     }
 
-    Animation animationComponent;
+    const float CrossFadeSpeed = 12f;
+    const float MinClipLength = 0.016f;
+    const float FallbackBobSpeed = 10f;
+    const float FallbackBobAmount = 0.04f;
+    const float FallbackStrafeLean = 10f;
+    const float FallbackJumpLift = 0.12f;
+    const float LoopWrapPadding = 0.02f;
+    const float MinimumJumpDuration = 0.48f;
+    const float RunLoopWindow = 1.28f;
+
+    PlayableGraph graph;
+    AnimationMixerPlayable mixer;
+    AnimationClipPlayable[] clipPlayables;
+    AnimationClip[] clips;
+    float[] clipWeights;
+    float[] clipTimes;
+    Animator targetAnimator;
     Transform observedRoot;
     PlayerMovement observedMovement;
-    Animator humanoidAnimator;
-    string idleClipName;
-    string runClipName;
-    string jumpClipName;
-    string currentClipName;
-    Vector3 lastRootPosition;
-    float lateralLean;
-    float lateralLeanVelocity;
-    float smoothedRunWeight;
-    float smoothedRunWeightVelocity;
-    float smoothedJumpWeight;
-    float smoothedJumpWeightVelocity;
-    bool isJumping;
-    bool isRunning;
-    BonePose[] bonePoses = Array.Empty<BonePose>();
-    Transform hipsBone;
-    Transform spineBone;
-    Transform headBone;
-    Quaternion hipsBaseRotation;
-    Quaternion spineBaseRotation;
-    Quaternion headBaseRotation;
+    VisualState currentState = VisualState.None;
+    float stumbleUntil;
+    bool initialized;
+    Transform fallbackRoot;
+    Vector3 fallbackBaseLocalPosition;
+    Quaternion fallbackBaseLocalRotation;
+    Vector3 fallbackBaseLocalScale;
+    float fallbackCycle;
 
-    public void Initialize(Transform root, AnimationClip[] clips)
+    public void Initialize(Transform root, AnimationClip[] loadedClips)
     {
         observedRoot = root;
         observedMovement = root != null ? root.GetComponent<PlayerMovement>() : null;
-        lastRootPosition = root != null ? root.position : Vector3.zero;
-        CacheProceduralRig();
+        clips = loadedClips ?? new AnimationClip[0];
+        stumbleUntil = 0f;
+        currentState = VisualState.None;
+        fallbackCycle = 0f;
+        initialized = false;
 
-        if (clips == null || clips.Length == 0)
+        DestroyGraph();
+
+        targetAnimator = GetComponent<Animator>();
+        if (targetAnimator == null)
+            targetAnimator = GetComponentInChildren<Animator>(true);
+
+        fallbackRoot = targetAnimator != null ? targetAnimator.transform : transform;
+        fallbackBaseLocalPosition = fallbackRoot.localPosition;
+        fallbackBaseLocalRotation = fallbackRoot.localRotation;
+        fallbackBaseLocalScale = fallbackRoot.localScale;
+
+        if (targetAnimator == null || !HasAnyPlayableClip())
             return;
 
-        animationComponent = gameObject.GetComponent<Animation>();
-        if (animationComponent == null)
-            animationComponent = gameObject.AddComponent<Animation>();
-
-        foreach (var clip in clips.Where(c => c != null && !string.IsNullOrWhiteSpace(c.name)))
+        foreach (var animator in GetComponentsInChildren<Animator>(true))
         {
-            if (animationComponent.GetClip(clip.name) != null)
+            if (animator != null && animator != targetAnimator)
+                animator.enabled = false;
+        }
+
+        targetAnimator.enabled = true;
+        targetAnimator.applyRootMotion = false;
+        targetAnimator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+        targetAnimator.updateMode = AnimatorUpdateMode.Normal;
+        targetAnimator.runtimeAnimatorController = null;
+        targetAnimator.Rebind();
+        targetAnimator.Update(0f);
+
+        graph = PlayableGraph.Create("RuntimePlayerVisualAnimator");
+        graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
+
+        mixer = AnimationMixerPlayable.Create(graph, 4);
+        clipPlayables = new AnimationClipPlayable[4];
+        clipWeights = new float[4];
+        clipTimes = new float[4];
+
+        for (int i = 0; i < clipPlayables.Length; i++)
+        {
+            AnimationClip clip = i < clips.Length ? clips[i] : null;
+            if (clip == null)
                 continue;
 
-            clip.legacy = true;
-            animationComponent.AddClip(clip, clip.name);
+            bool shouldLoop = IsLoopingIndex(i);
+            clip.wrapMode = shouldLoop ? WrapMode.Loop : WrapMode.Once;
+            var playable = AnimationClipPlayable.Create(graph, clip);
+            playable.SetApplyFootIK(true);
+            playable.SetApplyPlayableIK(false);
+            playable.SetDuration(shouldLoop ? double.MaxValue : Mathf.Max(MinClipLength, clip.length));
+            playable.SetTime(0d);
+            playable.SetSpeed(0d);
+
+            graph.Connect(playable, 0, mixer, i);
+            mixer.SetInputWeight(i, 0f);
+            clipPlayables[i] = playable;
         }
 
-        idleClipName = FindClipName("idle");
-        runClipName = FindClipName("run", "walk", "move");
-        jumpClipName = FindClipName("jump", "air");
+        var output = AnimationPlayableOutput.Create(graph, "RuntimePlayerAnimation", targetAnimator);
+        output.SetSourcePlayable(mixer);
 
-        if (string.IsNullOrEmpty(runClipName))
-            runClipName = idleClipName;
-        if (string.IsNullOrEmpty(idleClipName))
-            idleClipName = runClipName;
-
-        SetWrapMode(idleClipName, WrapMode.Loop);
-        SetWrapMode(runClipName, WrapMode.Loop);
-        SetWrapMode(jumpClipName, WrapMode.ClampForever);
-
-        PlayClip(!string.IsNullOrEmpty(runClipName) ? runClipName : idleClipName);
+        graph.Play();
+        initialized = true;
+        ForceState(ResolveDesiredState(), true);
+        AdvanceClipTimes(0f);
+        ApplyDirectionalPresentation(ResolveDesiredState());
     }
 
-    void Update()
+    public void TriggerStumble(float duration = 0.85f)
     {
-        if (observedRoot == null)
-            return;
+        stumbleUntil = Mathf.Max(stumbleUntil, Time.time + duration);
 
-        float deltaTime = Mathf.Max(Time.deltaTime, 0.0001f);
-        Vector3 rootDelta = observedRoot.position - lastRootPosition;
-        lastRootPosition = observedRoot.position;
-
-        float forwardSpeed = Mathf.Abs(rootDelta.z) / deltaTime;
-        float lateralSpeed = rootDelta.x / deltaTime;
-        lateralLean = Mathf.SmoothDamp(lateralLean, Mathf.Clamp(lateralSpeed * 1.25f, -11f, 11f), ref lateralLeanVelocity, 0.12f, Mathf.Infinity, deltaTime);
-
-        isJumping = observedMovement != null ? !observedMovement.IsGrounded : Mathf.Abs(rootDelta.y) > 0.02f;
-        isRunning = observedMovement != null ? observedMovement.playerSpeed > 0.1f : forwardSpeed > 0.1f;
-
-        if (animationComponent == null)
-            return;
-
-        if (isJumping && !string.IsNullOrEmpty(jumpClipName))
-        {
-            PlayClip(jumpClipName);
-            return;
-        }
-
-        if (isRunning && !string.IsNullOrEmpty(runClipName))
-        {
-            PlayClip(runClipName);
-            return;
-        }
-
-        PlayClip(idleClipName);
+        if (initialized)
+            ForceState(VisualState.Stumble, true);
     }
 
     void LateUpdate()
     {
-        ApplyProceduralPose();
-    }
-
-    void CacheProceduralRig()
-    {
-        humanoidAnimator = GetComponentInChildren<Animator>(true);
-
-        hipsBone = ResolveBone(HumanBodyBones.Hips, "hips", "pelvis");
-        spineBone = ResolveBone(HumanBodyBones.Spine, "spine", "chest", "upperchest");
-        headBone = ResolveBone(HumanBodyBones.Head, "head");
-
-        if (hipsBone != null)
-            hipsBaseRotation = hipsBone.localRotation;
-        if (spineBone != null)
-            spineBaseRotation = spineBone.localRotation;
-        if (headBone != null)
-            headBaseRotation = headBone.localRotation;
-
-        var poses = new List<BonePose>();
-        AddBonePose(poses, ResolveBone(HumanBodyBones.LeftUpperArm, "leftupperarm", "leftarm", "arm_l"), new Vector3(-16f, 0f, 5f), Mathf.PI, new Vector3(-12f, 0f, 7f));
-        AddBonePose(poses, ResolveBone(HumanBodyBones.RightUpperArm, "rightupperarm", "rightarm", "arm_r"), new Vector3(-16f, 0f, -5f), 0f, new Vector3(-12f, 0f, -7f));
-        AddBonePose(poses, ResolveBone(HumanBodyBones.LeftLowerArm, "leftlowerarm", "leftforearm", "forearm_l"), new Vector3(-8f, 0f, 3f), Mathf.PI, new Vector3(-6f, 0f, 3f));
-        AddBonePose(poses, ResolveBone(HumanBodyBones.RightLowerArm, "rightlowerarm", "rightforearm", "forearm_r"), new Vector3(-8f, 0f, -3f), 0f, new Vector3(-6f, 0f, -3f));
-        AddBonePose(poses, ResolveBone(HumanBodyBones.LeftUpperLeg, "leftupleg", "leftthigh", "upleg_l"), new Vector3(18f, 0f, 3f), 0f, new Vector3(6f, 0f, 0f));
-        AddBonePose(poses, ResolveBone(HumanBodyBones.RightUpperLeg, "rightupleg", "rightthigh", "upleg_r"), new Vector3(18f, 0f, -3f), Mathf.PI, new Vector3(6f, 0f, 0f));
-        AddBonePose(poses, ResolveBone(HumanBodyBones.LeftLowerLeg, "leftleg", "leftcalf", "calf_l"), new Vector3(-12f, 0f, 0f), Mathf.PI, new Vector3(8f, 0f, 0f));
-        AddBonePose(poses, ResolveBone(HumanBodyBones.RightLowerLeg, "rightleg", "rightcalf", "calf_r"), new Vector3(-12f, 0f, 0f), 0f, new Vector3(8f, 0f, 0f));
-        bonePoses = poses.ToArray();
-    }
-
-    Transform ResolveBone(HumanBodyBones humanBone, params string[] fallbackKeywords)
-    {
-        if (humanoidAnimator != null && humanoidAnimator.isHuman)
+        VisualState desiredState = ResolveDesiredState();
+        if (initialized && graph.IsValid() && mixer.IsValid())
         {
-            var bone = humanoidAnimator.GetBoneTransform(humanBone);
-            if (bone != null)
-                return bone;
+            ForceState(desiredState, false);
+            AdvanceClipTimes(Time.deltaTime);
+            ApplyDirectionalPresentation(desiredState);
+            return;
         }
 
-        return FindBoneByKeywords(fallbackKeywords);
+        ApplyFallbackMotion(desiredState);
     }
 
-    Transform FindBoneByKeywords(params string[] keywords)
+    void OnDisable()
     {
-        if (keywords == null || keywords.Length == 0)
-            return null;
+        RestoreFallbackPose();
+    }
 
-        foreach (var transformChild in GetComponentsInChildren<Transform>(true))
+    void OnDestroy()
+    {
+        DestroyGraph();
+    }
+
+    VisualState ResolveDesiredState()
+    {
+        if (Time.time < stumbleUntil)
+            return VisualState.Stumble;
+
+        bool isGrounded = observedMovement == null || observedMovement.IsGrounded;
+        if (!isGrounded)
+            return VisualState.Jump;
+
+        bool isSwitchingLane = observedMovement != null && observedMovement.CurrentLane != observedMovement.TargetLane;
+        if (isSwitchingLane)
+            return VisualState.Strafe;
+
+        return VisualState.Run;
+    }
+
+    void ForceState(VisualState desiredState, bool restartClip)
+    {
+        int desiredIndex = GetClipIndex(desiredState);
+        if (desiredIndex < 0)
+            return;
+
+        bool stateChanged = currentState != desiredState;
+        if (stateChanged)
         {
-            string lowered = transformChild.name.ToLowerInvariant();
-            for (int i = 0; i < keywords.Length; i++)
-            {
-                if (lowered.Contains(keywords[i]))
-                    return transformChild;
-            }
+            currentState = desiredState;
+            restartClip = true;
         }
 
-        return null;
-    }
+        float blendStep = restartClip ? 1f : Mathf.Max(0.01f, Time.deltaTime * CrossFadeSpeed);
 
-    void AddBonePose(List<BonePose> poses, Transform bone, Vector3 runEulerScale, float runPhase, Vector3 jumpEulerScale)
-    {
-        if (bone == null)
-            return;
-
-        poses.Add(new BonePose
+        for (int i = 0; i < clipWeights.Length; i++)
         {
-            bone = bone,
-            baseRotation = bone.localRotation,
-            runEulerScale = runEulerScale,
-            runPhase = runPhase,
-            jumpEulerScale = jumpEulerScale
-        });
-    }
-
-    void ApplyProceduralPose()
-    {
-        if ((bonePoses == null || bonePoses.Length == 0) && hipsBone == null && spineBone == null && headBone == null)
-            return;
-
-        float deltaTime = Mathf.Max(Time.deltaTime, 0.0001f);
-        float speedFactor = observedMovement != null
-            ? Mathf.InverseLerp(6f, 20f, observedMovement.playerSpeed)
-            : 0.65f;
-        float cycle = Time.time * Mathf.Lerp(4.4f, 8.1f, speedFactor);
-
-        float targetRunWeight = isRunning ? 1f : 0.12f;
-        if (animationComponent != null && animationComponent.isPlaying)
-            targetRunWeight *= 0.52f;
-        smoothedRunWeight = Mathf.SmoothDamp(smoothedRunWeight, targetRunWeight, ref smoothedRunWeightVelocity, 0.11f, Mathf.Infinity, deltaTime);
-
-        float targetJumpWeight = isJumping ? 1f : 0f;
-        smoothedJumpWeight = Mathf.SmoothDamp(smoothedJumpWeight, targetJumpWeight, ref smoothedJumpWeightVelocity, 0.1f, Mathf.Infinity, deltaTime);
-
-        float runWeight = smoothedRunWeight;
-        float jumpWeight = smoothedJumpWeight;
-        float poseBlend = 1f - Mathf.Exp(-11f * deltaTime);
-
-        for (int i = 0; i < bonePoses.Length; i++)
-        {
-            BonePose pose = bonePoses[i];
-            if (pose.bone == null)
+            if (!HasValidClip(i))
                 continue;
 
-            float swing = Mathf.Sin(cycle + pose.runPhase);
-            Vector3 euler = (pose.runEulerScale * swing * runWeight) + (pose.jumpEulerScale * jumpWeight);
-            Quaternion targetRotation = pose.baseRotation * Quaternion.Euler(euler);
-            pose.bone.localRotation = Quaternion.Slerp(pose.bone.localRotation, targetRotation, poseBlend);
-        }
+            bool isActive = i == desiredIndex;
+            if (restartClip && isActive)
+                RestartClip(i);
 
-        if (hipsBone != null)
-        {
-            Quaternion hipsTarget = hipsBaseRotation * Quaternion.Euler(0f, lateralLean * 0.26f, -lateralLean * 0.22f);
-            hipsBone.localRotation = Quaternion.Slerp(hipsBone.localRotation, hipsTarget, poseBlend);
-        }
+            float targetWeight = isActive ? 1f : 0f;
+            clipWeights[i] = restartClip
+                ? targetWeight
+                : Mathf.MoveTowards(clipWeights[i], targetWeight, blendStep);
 
-        if (spineBone != null)
-        {
-            float chestBob = Mathf.Sin(cycle * 0.5f) * 2.2f * runWeight;
-            Quaternion spineTarget = spineBaseRotation * Quaternion.Euler((-3f * runWeight) + (-6f * jumpWeight) + chestBob, lateralLean * 0.3f, lateralLean * 0.22f);
-            spineBone.localRotation = Quaternion.Slerp(spineBone.localRotation, spineTarget, poseBlend);
-        }
-
-        if (headBone != null)
-        {
-            float headBob = Mathf.Sin(cycle * 0.5f) * 1.5f * runWeight;
-            Quaternion headTarget = headBaseRotation * Quaternion.Euler(headBob, -lateralLean * 0.18f, -lateralLean * 0.12f);
-            headBone.localRotation = Quaternion.Slerp(headBone.localRotation, headTarget, poseBlend);
+            mixer.SetInputWeight(i, clipWeights[i]);
         }
     }
 
-    string FindClipName(params string[] keywords)
+    void RestartClip(int clipIndex)
     {
-        foreach (AnimationState state in animationComponent)
+        if (!HasValidClip(clipIndex))
+            return;
+
+        if (clipTimes != null && clipIndex >= 0 && clipIndex < clipTimes.Length)
+            clipTimes[clipIndex] = 0f;
+
+        clipPlayables[clipIndex].SetTime(0d);
+        clipPlayables[clipIndex].SetDone(false);
+    }
+
+    void AdvanceClipTimes(float deltaTime)
+    {
+        if (clipPlayables == null || clipWeights == null || clipTimes == null)
+            return;
+
+        int activeIndex = GetClipIndex(currentState);
+        for (int i = 0; i < clipPlayables.Length; i++)
         {
-            string lowered = state.name.ToLowerInvariant();
-            for (int i = 0; i < keywords.Length; i++)
+            if (!HasValidClip(i))
+                continue;
+            if (i != activeIndex && clipWeights[i] <= 0.0001f)
+                continue;
+
+            float playbackSpeed = GetPlaybackSpeed(i);
+            float effectiveLength = GetEffectiveLoopLength(i);
+            float clipLength = GetClipLength(i);
+
+            if (i == activeIndex)
+                clipTimes[i] += Mathf.Max(0f, deltaTime) * playbackSpeed;
+
+            if (IsLoopingIndex(i))
             {
-                if (lowered.Contains(keywords[i]))
-                    return state.name;
+                if (effectiveLength > MinClipLength)
+                    clipTimes[i] = Mathf.Repeat(clipTimes[i], Mathf.Max(MinClipLength, effectiveLength - LoopWrapPadding));
             }
+            else
+            {
+                clipTimes[i] = Mathf.Clamp(clipTimes[i], 0f, Mathf.Max(0f, clipLength - MinClipLength));
+            }
+
+            clipPlayables[i].SetTime(clipTimes[i]);
+            clipPlayables[i].SetDone(false);
+        }
+    }
+
+    int GetClipIndex(VisualState state)
+    {
+        int preferredIndex = state switch
+        {
+            VisualState.Run => 0,
+            VisualState.Jump => 1,
+            VisualState.Strafe => 2,
+            VisualState.Stumble => 3,
+            _ => 0
+        };
+
+        if (HasValidClip(preferredIndex))
+            return preferredIndex;
+        if (HasValidClip(0))
+            return 0;
+
+        for (int i = 0; i < 4; i++)
+        {
+            if (HasValidClip(i))
+                return i;
         }
 
-        foreach (AnimationState state in animationComponent)
-            return state.name;
-
-        return null;
+        return -1;
     }
 
-    void SetWrapMode(string clipName, WrapMode wrapMode)
+    bool HasAnyPlayableClip()
     {
-        if (string.IsNullOrEmpty(clipName) || animationComponent == null || animationComponent[clipName] == null)
-            return;
+        if (clips == null)
+            return false;
 
-        animationComponent[clipName].wrapMode = wrapMode;
+        for (int i = 0; i < clips.Length; i++)
+        {
+            if (clips[i] != null)
+                return true;
+        }
+
+        return false;
     }
 
-    void PlayClip(string clipName)
+    bool HasValidClip(int index)
     {
-        if (string.IsNullOrEmpty(clipName) || currentClipName == clipName || animationComponent == null)
+        return clipPlayables != null &&
+               index >= 0 &&
+               index < clipPlayables.Length &&
+               clipPlayables[index].IsValid();
+    }
+
+    float GetClipLength(int clipIndex)
+    {
+        if (clips == null || clipIndex < 0 || clipIndex >= clips.Length || clips[clipIndex] == null)
+            return MinClipLength;
+
+        return Mathf.Max(MinClipLength, clips[clipIndex].length);
+    }
+
+    float GetEffectiveLoopLength(int clipIndex)
+    {
+        float clipLength = GetClipLength(clipIndex);
+        if (!IsLoopingIndex(clipIndex))
+            return clipLength;
+
+        if (clipIndex == 0)
+            return Mathf.Min(clipLength, RunLoopWindow);
+
+        return clipLength;
+    }
+
+    bool IsLoopingIndex(int clipIndex)
+    {
+        return clipIndex == 0 || clipIndex == 2;
+    }
+
+    float GetPlaybackSpeed(int clipIndex)
+    {
+        return clipIndex switch
+        {
+            0 => 1.18f,
+            1 => GetJumpPlaybackSpeed(),
+            2 => 1.1f,
+            3 => 1f,
+            _ => 1f
+        };
+    }
+
+    float GetJumpPlaybackSpeed()
+    {
+        float clipLength = GetClipLength(1);
+        if (clipLength <= MinClipLength)
+            return 1.12f;
+
+        if (observedMovement == null)
+            return 1.12f;
+
+        float gravity = Mathf.Max(0.01f, observedMovement.gravity);
+        float jumpForce = Mathf.Max(0.01f, observedMovement.jumpForce);
+        float expectedAirTime = Mathf.Max(MinimumJumpDuration, (2f * jumpForce) / gravity);
+
+        // Finish the full jump clip slightly before landing so the visual reads cleanly.
+        float desiredVisualDuration = Mathf.Max(MinimumJumpDuration, expectedAirTime * 0.92f);
+        float playbackSpeed = clipLength / desiredVisualDuration;
+        return Mathf.Clamp(playbackSpeed, 1f, 2.4f);
+    }
+
+    void ApplyDirectionalPresentation(VisualState state)
+    {
+        if (fallbackRoot == null)
             return;
 
-        if (animationComponent[clipName] == null)
+        Vector3 scale = fallbackBaseLocalScale;
+        float baseX = Mathf.Abs(scale.x);
+        if (baseX <= 0.0001f)
+            baseX = 1f;
+
+        if (state == VisualState.Strafe && observedMovement != null && observedMovement.TargetLane < observedMovement.CurrentLane)
+            scale.x = -baseX;
+        else
+            scale.x = baseX;
+
+        fallbackRoot.localScale = scale;
+    }
+
+    void ApplyFallbackMotion(VisualState state)
+    {
+        if (fallbackRoot == null)
             return;
 
-        currentClipName = clipName;
-        animationComponent.CrossFade(clipName, 0.18f);
+        fallbackCycle += Time.deltaTime * FallbackBobSpeed;
+        Vector3 targetPosition = fallbackBaseLocalPosition;
+        Quaternion targetRotation = fallbackBaseLocalRotation;
+
+        if (state == VisualState.Run)
+        {
+            targetPosition.y += Mathf.Sin(fallbackCycle) * FallbackBobAmount;
+        }
+        else if (state == VisualState.Strafe)
+        {
+            float direction = 0f;
+            if (observedMovement != null)
+                direction = Mathf.Sign(observedMovement.TargetLane - observedMovement.CurrentLane);
+
+            targetPosition.y += Mathf.Sin(fallbackCycle) * (FallbackBobAmount * 0.7f);
+            targetRotation *= Quaternion.Euler(0f, 0f, -direction * FallbackStrafeLean);
+        }
+        else if (state == VisualState.Jump)
+        {
+            targetPosition.y += FallbackJumpLift;
+        }
+        else if (state == VisualState.Stumble)
+        {
+            targetRotation *= Quaternion.Euler(18f, 0f, 0f);
+        }
+
+        fallbackRoot.localPosition = Vector3.Lerp(fallbackRoot.localPosition, targetPosition, Time.deltaTime * 12f);
+        fallbackRoot.localRotation = Quaternion.Slerp(fallbackRoot.localRotation, targetRotation, Time.deltaTime * 12f);
+    }
+
+    void RestoreFallbackPose()
+    {
+        if (fallbackRoot == null)
+            return;
+
+        fallbackRoot.localPosition = fallbackBaseLocalPosition;
+        fallbackRoot.localRotation = fallbackBaseLocalRotation;
+        fallbackRoot.localScale = fallbackBaseLocalScale;
+    }
+
+    void DestroyGraph()
+    {
+        if (graph.IsValid())
+            graph.Destroy();
+
+        clipPlayables = null;
+        clipWeights = null;
+        clipTimes = null;
+        initialized = false;
     }
 }

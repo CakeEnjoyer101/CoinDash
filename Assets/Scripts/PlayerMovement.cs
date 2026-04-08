@@ -22,9 +22,6 @@ public class PlayerMovement : MonoBehaviour
     private bool useRuntimeGroundPlane;
     private float runtimeGroundY;
 
-    private float touchHoldTimer = 0f;
-    public float touchHoldForJump = 0.3f;
-
     private bool canJump = true;
     public float jumpCooldown = 0.1f;
     private float lastJumpTime = 0f;
@@ -33,6 +30,8 @@ public class PlayerMovement : MonoBehaviour
     private float[] lanePositions = new float[3];
     private Vector2 swipeStart;
     private bool trackingSwipe;
+    public float swipeThresholdRatio = 0.08f;
+    public float swipeDirectionBias = 1.12f;
 
     public int CurrentLane => currentLane;
     public int TargetLane => targetLane;
@@ -52,12 +51,14 @@ public class PlayerMovement : MonoBehaviour
 
     void Update()
     {
+        float deltaTime = Time.deltaTime;
         if (!isGrounded)
-            verticalVelocity -= gravity * Time.deltaTime;
+            verticalVelocity -= gravity * deltaTime;
 
-        Vector3 verticalMovement = new Vector3(0, verticalVelocity * Time.deltaTime, 0);
-        Vector3 forwardMovement = Vector3.forward * playerSpeed * Time.deltaTime;
-        transform.Translate(forwardMovement + verticalMovement, Space.World);
+        Vector3 position = transform.position;
+        position.z += playerSpeed * deltaTime;
+        position.y += verticalVelocity * deltaTime;
+        transform.position = position;
         UpdateLanePosition();
 
 #if UNITY_EDITOR || UNITY_STANDALONE
@@ -92,18 +93,25 @@ public class PlayerMovement : MonoBehaviour
 
             if (touch.phase == TouchPhase.Began)
             {
-                touchHoldTimer = 0f;
                 swipeStart = touch.position;
                 trackingSwipe = true;
             }
             else if (touch.phase == TouchPhase.Stationary || touch.phase == TouchPhase.Moved)
             {
-                touchHoldTimer += Time.deltaTime;
                 if (trackingSwipe)
                 {
                     Vector2 delta = touch.position - swipeStart;
-                    float minSwipeDistance = Screen.width * 0.08f;
-                    if (Mathf.Abs(delta.x) >= minSwipeDistance && Mathf.Abs(delta.x) > Mathf.Abs(delta.y))
+                    float minSwipeDistance = Mathf.Min(Screen.width, Screen.height) * swipeThresholdRatio;
+                    float absX = Mathf.Abs(delta.x);
+                    float absY = Mathf.Abs(delta.y);
+
+                    if (delta.y > 0f && absY >= minSwipeDistance && absY > absX * swipeDirectionBias)
+                    {
+                        if (isGrounded && canJump)
+                            Jump();
+                        trackingSwipe = false;
+                    }
+                    else if (absX >= minSwipeDistance && absX > absY * swipeDirectionBias)
                     {
                         ShiftLane(delta.x > 0f ? 1 : -1);
                         trackingSwipe = false;
@@ -112,13 +120,6 @@ public class PlayerMovement : MonoBehaviour
             }
             else if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
             {
-                if (touchHoldTimer < touchHoldForJump &&
-                    isGrounded &&
-                    canJump)
-                {
-                    Jump();
-                }
-
                 trackingSwipe = false;
             }
         }
@@ -292,11 +293,17 @@ public class PlayerMovement : MonoBehaviour
 
     public void ShiftLane(int direction)
     {
-        SetLane(targetLane + direction);
+        if (currentLane != targetLane)
+            return;
+
+        SetLane(currentLane + direction);
     }
 
     public void SetLane(int laneIndex)
     {
+        if (currentLane != targetLane)
+            return;
+
         targetLane = Mathf.Clamp(laneIndex, 0, lanePositions.Length - 1);
     }
 

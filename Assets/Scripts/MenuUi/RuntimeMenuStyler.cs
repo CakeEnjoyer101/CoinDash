@@ -22,6 +22,7 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
     static readonly Color TextMuted = new(0.7f, 0.79f, 0.88f, 1f);
 
     static Sprite whiteSprite;
+    static Sprite mainMenuBackdropSprite;
 
     Canvas canvas;
     TMP_FontAsset fontAsset;
@@ -139,6 +140,7 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
         card.pivot = new Vector2(0.5f, 0.5f);
         card.gameObject.AddComponent<UiFloatMotion>().amplitude = 5f;
         DecoratePanel(card, AccentCyan, AccentGold);
+        BuildMainMenuHighScorePanel(root);
 
         var eyebrow = CreateText(card, "Eyebrow", "COINDASH", 30, FontStyles.Bold, AccentGold, new Vector2(0f, -46f), new Vector2(260f, 34f), true);
         eyebrow.alignment = TextAlignmentOptions.Center;
@@ -149,7 +151,7 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
         CenterInPanel(title.rectTransform, new Vector2(0f, 86f));
         title.gameObject.AddComponent<UiPulseGlow>();
 
-        var subtitle = CreateText(card, "Subtitle", "Three lanes, neon casino energy and a cleaner front end.", 20, FontStyles.Normal, TextMuted, new Vector2(0f, -156f), new Vector2(560f, 58f));
+        var subtitle = CreateText(card, "Subtitle", "Three lanes, neon casino energy and a straight shot into the action.", 20, FontStyles.Normal, TextMuted, new Vector2(0f, -156f), new Vector2(560f, 58f));
         subtitle.alignment = TextAlignmentOptions.Center;
         CenterInPanel(subtitle.rectTransform, new Vector2(0f, 6f));
 
@@ -157,20 +159,50 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
         modes.alignment = TextAlignmentOptions.Center;
         CenterInPanel(modes.rectTransform, new Vector2(0f, -64f));
 
-        var startButton = CreateButton(card, "StartRunButton", "CHOOSE RUN", "Stage select + modes", new Vector2(0f, -232f), new Vector2(360f, 84f), AccentGold, new Color(1f, 0.9f, 0.58f, 1f));
+        var startButton = CreateButton(card, "StartRunButton", "CHOOSE RUN", "Pick your run and dive in", new Vector2(0f, -232f), new Vector2(360f, 84f), AccentGold, new Color(1f, 0.9f, 0.58f, 1f));
         startButton.onClick.AddListener(() =>
         {
             MainMenuControl.hasClicked = true;
             menuControl.StartGame();
         });
-        startButton.gameObject.AddComponent<UiTooltipTrigger>().Initialize(tooltip, "Opens the level select directly. One click, no extra intro screen.");
+        startButton.gameObject.AddComponent<UiTooltipTrigger>().Initialize(tooltip, "Choose your run and jump straight onto the floor.");
         CenterInPanel(startButton.GetComponent<RectTransform>(), new Vector2(0f, -136f));
 
-        var hint = CreateText(card, "Hint", "One click to stage select. Pick a run, toggle hardcore if you want, and go.", 16, FontStyles.Normal, TextMuted, new Vector2(0f, -336f), new Vector2(560f, 42f));
-        hint.alignment = TextAlignmentOptions.Center;
-        CenterInPanel(hint.rectTransform, new Vector2(0f, -198f));
-
         StartCoroutine(KeepObjectsDisabled("ClickToStart", "Button", "StartGame", "Text (TMP)"));
+    }
+
+    void BuildMainMenuHighScorePanel(RectTransform root)
+    {
+        var panel = CreatePanel(root, "HomeHighScorePanel", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-38f, -38f), new Vector2(340f, 206f), new Color(0.04f, 0.08f, 0.14f, 0.9f));
+        DecoratePanel(panel, AccentGold, AccentCyan);
+
+        var title = CreateText(panel, "HighScoreTitle", "HIGH SCORES", 24f, FontStyles.Bold, TextPrimary, new Vector2(24f, -24f), new Vector2(292f, 28f), true);
+        title.alignment = TextAlignmentOptions.Center;
+
+        CreateMainMenuHighScoreRow(panel, "Level1", "LEVEL 1", "BEST COINS", RunProgressStore.FormatPrimaryValue(0, RunProgressStore.GetHighScore(0)), new Vector2(24f, -66f), AccentGold);
+        CreateMainMenuHighScoreRow(panel, "Level2", "LEVEL 2", "BEST DISTANCE", RunProgressStore.FormatPrimaryValue(1, RunProgressStore.GetHighScore(1)), new Vector2(24f, -126f), AccentCyan);
+
+        var footer = CreateText(panel, "HighScoreFooter", "Updates when you beat your record.", 14f, FontStyles.Normal, TextMuted, new Vector2(24f, -174f), new Vector2(292f, 28f));
+        footer.alignment = TextAlignmentOptions.Center;
+    }
+
+    void CreateMainMenuHighScoreRow(RectTransform parent, string namePrefix, string levelLabel, string metricLabel, string valueText, Vector2 anchoredPosition, Color accent)
+    {
+        var row = CreatePanel(parent, $"{namePrefix}Row", new Vector2(0f, 1f), new Vector2(0f, 1f), anchoredPosition, new Vector2(292f, 44f), new Color(0.07f, 0.12f, 0.2f, 0.62f));
+
+        var level = CreateText(row, $"{namePrefix}Level", levelLabel, 16f, FontStyles.Bold, accent, new Vector2(14f, -8f), new Vector2(90f, 18f), true);
+        var metric = CreateText(row, $"{namePrefix}Metric", metricLabel, 13f, FontStyles.Normal, TextMuted, new Vector2(14f, -24f), new Vector2(120f, 16f));
+        var value = CreateText(row, $"{namePrefix}Value", valueText, 24f, FontStyles.Bold, TextPrimary, new Vector2(166f, -8f), new Vector2(112f, 28f), true);
+        var line = CreateImage(row, $"{namePrefix}Accent", accent, new Vector2(0f, 0f), new Vector2(4f, 44f));
+        line.rectTransform.anchorMin = new Vector2(0f, 0f);
+        line.rectTransform.anchorMax = new Vector2(0f, 1f);
+        line.rectTransform.pivot = new Vector2(0f, 0.5f);
+        line.rectTransform.anchoredPosition = Vector2.zero;
+        line.rectTransform.sizeDelta = new Vector2(4f, 0f);
+
+        level.alignment = TextAlignmentOptions.TopLeft;
+        metric.alignment = TextAlignmentOptions.TopLeft;
+        value.alignment = TextAlignmentOptions.MidlineRight;
     }
 
     IEnumerator SwapMainMenuButtons(MainMenuControl menuControl, GameObject introButton, GameObject startButton)
@@ -237,7 +269,7 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
         var badge = CreateText(infoPanel, "StageBadge", "LEVEL 1", 18f, FontStyles.Bold, AccentCyan, new Vector2(42f, -34f), new Vector2(180f, 22f), true);
         var name = CreateText(infoPanel, "StageName", "Token Sprint", 44f, FontStyles.Bold, TextPrimary, new Vector2(42f, -82f), new Vector2(430f, 48f), true);
         var objective = CreateText(infoPanel, "StageObjective", "Collect as many tokens as possible. Follow dense token trails and jump for high arcs.", 20f, FontStyles.Normal, TextMuted, new Vector2(42f, -150f), new Vector2(438f, 90f));
-        var detail = CreateText(infoPanel, "StageDetail", "A cleaner route with wider spacing. This stage is all about score and efficient token collection.", 18f, FontStyles.Normal, TextMuted, new Vector2(42f, -256f), new Vector2(438f, 76f));
+        var detail = CreateText(infoPanel, "StageDetail", "A wider route with room to breathe. This stage is all about score, rhythm, and stacking tokens.", 18f, FontStyles.Normal, TextMuted, new Vector2(42f, -256f), new Vector2(438f, 76f));
 
         var leftArrow = CreateButton(content, "LeftStageArrow", "<", "", new Vector2(0f, 0f), new Vector2(82f, 82f), new Color(0.08f, 0.14f, 0.22f, 0.96f), AccentCyan);
         var rightArrow = CreateButton(content, "RightStageArrow", ">", "", new Vector2(0f, 0f), new Vector2(82f, 82f), new Color(0.08f, 0.14f, 0.22f, 0.96f), AccentCyan);
@@ -346,12 +378,40 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
 
     void CreateMainMenuBackground(RectTransform root)
     {
-        var veil = CreateImage(root, "MainMenuBackground", new Color(0.03f, 0.05f, 0.09f, 0.76f), Vector2.zero, Vector2.zero);
+        var background = CreateImage(root, "MainMenuBackgroundImage", Color.white, Vector2.zero, Vector2.zero);
+        var backgroundRect = background.rectTransform;
+        backgroundRect.anchorMin = Vector2.zero;
+        backgroundRect.anchorMax = Vector2.one;
+        backgroundRect.offsetMin = Vector2.zero;
+        backgroundRect.offsetMax = Vector2.zero;
+
+        var sprite = GetMainMenuBackgroundSprite();
+        if (sprite != null)
+        {
+            background.sprite = sprite;
+            background.color = Color.white;
+            background.type = Image.Type.Simple;
+            background.preserveAspect = false;
+        }
+        else
+        {
+            background.color = new Color(0.03f, 0.05f, 0.09f, 1f);
+        }
+
+        var veil = CreateImage(root, "MainMenuBackgroundVeil", new Color(0.02f, 0.04f, 0.08f, 0.52f), Vector2.zero, Vector2.zero);
         var veilRect = veil.rectTransform;
         veilRect.anchorMin = Vector2.zero;
         veilRect.anchorMax = Vector2.one;
         veilRect.offsetMin = Vector2.zero;
         veilRect.offsetMax = Vector2.zero;
+
+        var lowerGlow = CreateImage(root, "MainMenuLowerGlow", new Color(0.08f, 0.2f, 0.32f, 0.18f), Vector2.zero, Vector2.zero);
+        var lowerGlowRect = lowerGlow.rectTransform;
+        lowerGlowRect.anchorMin = new Vector2(0f, 0f);
+        lowerGlowRect.anchorMax = new Vector2(1f, 0.48f);
+        lowerGlowRect.offsetMin = Vector2.zero;
+        lowerGlowRect.offsetMax = Vector2.zero;
+
     }
 
     void DecoratePanel(RectTransform panel, Color primary, Color secondary)
@@ -691,6 +751,23 @@ public sealed class RuntimeMenuStyler : MonoBehaviour
         whiteSprite = Sprite.Create(texture, new Rect(0f, 0f, 2f, 2f), new Vector2(0.5f, 0.5f), 100f);
         return whiteSprite;
     }
+
+    static Sprite GetMainMenuBackgroundSprite()
+    {
+        if (mainMenuBackdropSprite != null)
+            return mainMenuBackdropSprite;
+
+        var texture = Resources.Load<Texture2D>("MenuBackgrounds/NeonCityCasinoNight");
+        if (texture == null)
+            return null;
+
+        mainMenuBackdropSprite = Sprite.Create(
+            texture,
+            new Rect(0f, 0f, texture.width, texture.height),
+            new Vector2(0.5f, 0.5f),
+            100f);
+        return mainMenuBackdropSprite;
+    }
 }
 
 public sealed class RuntimeStageSelectCarousel : MonoBehaviour
@@ -714,7 +791,7 @@ public sealed class RuntimeStageSelectCarousel : MonoBehaviour
             badge = "LEVEL 1",
             title = "Token Sprint",
             objective = "Collect as many tokens as possible. Follow dense token trails and jump for high arcs.",
-            detail = "A cleaner route with wider spacing. This stage is all about score and efficient token collection.",
+            detail = "A wider route with room to breathe. This stage is all about score, rhythm, and stacking tokens.",
             primary = new Color(0.12f, 0.54f, 0.97f, 1f),
             secondary = new Color(1f, 0.78f, 0.34f, 1f)
         },

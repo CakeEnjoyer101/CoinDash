@@ -57,6 +57,10 @@ public class CollisionDetect : MonoBehaviour
             return;
 
         isProcessing = true;
+        RuntimeAudioDirector.PlayCollision();
+        var visualAnimator = thePlayer.GetComponentInChildren<RuntimePlayerVisualAnimator>(true);
+        if (visualAnimator != null)
+            visualAnimator.TriggerStumble();
         playerMovement.enabled = false;
 
         var director = RunGameplayDirector.EnsureExists();
@@ -116,20 +120,33 @@ public class CollisionDetect : MonoBehaviour
 
     IEnumerator CollisionEnd()
     {
-        if (collisionFX != null)
-            collisionFX.Play();
-
         if (mainCam != null)
         {
+            var follow = mainCam.GetComponent<RuntimeRunCameraFollow>();
+            if (follow != null)
+                follow.enabled = false;
+
             var animator = mainCam.GetComponent<Animator>();
             if (animator != null)
+            {
+                animator.enabled = true;
+                animator.Rebind();
+                animator.Update(0f);
                 animator.Play("CollisionCam");
+            }
         }
 
         if (fadeOut != null)
             fadeOut.SetActive(true);
 
         yield return new WaitForSeconds(1.05f);
+        var director = RunGameplayDirector.EnsureExists();
+        if (director != null)
+        {
+            yield return director.ShowRunSummaryAndReturnToMenu(fadeOut);
+            yield break;
+        }
+
         SceneManager.LoadScene(0);
     }
 }
